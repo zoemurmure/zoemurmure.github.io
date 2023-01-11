@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>X64 分页机制 - Logic Security 逻辑门</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="">
+		<meta property="og:title" content="X64 分页机制" />
+<meta property="og:description" content="前言 在学习 HEVD 的过程中发现有很多知识不了解，这篇文章因此出现，文章内容翻译自参考资料^[1]^，出于学习目的考虑，内容和结构有所调整。
+基本定义 首先明确分页(Paging)出现的原因，是为了实现虚拟地址，更方便的做虚拟地址和物理地址的转换。 理论上说，64 位机器可以拥有 2^64^ 字节的内存，但是出于地址转换的效率考虑，并不是所有的 64 位都是可用的。在实际应用时，48~63 位的数值与 47 位保持相同，因为 64 位机器中存在两端有效地址：
+0 ~ 0x7FFF FFFFFFFF 0x8000 00000000 ~ 0xFFFFFFFF FFFFFFFF 之所以采用这样的机制，是为了与 32 位机器保持一致，同时便于地址的转换。因为在 32 位机器中，地址空间被平分为两部分，高地址部分用于存储系统代码和数据，这样可以很好的区分应用程序代码和系统代码。由于 48~63 位与 47 位保持一致，因此在做地址转换时不需要考虑这部分数值，而且如果之后 CPU 的能力增强，就可以很方便的使用更多位数，也不需要改变目前的设置。
+如果一个虚拟地址的 47~63 位是全 1 或全 0 的，我们就说这个地址是规范(canonical)地址。因此 x64 代码中的所有地址都应该是规范地址，使用非规范地址会导致页错误异常。
+地址转换 流程 CPU 使用一系列保存在内存中的表对地址进行转换，整个流程如下：
+CR3 寄存器中存储了第一级表的物理地址，该表叫做 Page Map Level 4 (PML4)，大小为 4KB，包含了大小为 8 字节的条目PML4E，下面介绍的其他表具有相同的大小及结构； 虚拟地址的 39 ~ 47 位用于索引 PML4，定位到一个 PML4E； PML4E 中保存了下一级表的物理地址，该表叫做 Page Directory Pointer Table (PDPT)； 虚拟地址的 30 ~ 38 位用于索引 PDPT，定位到一个 PDPTE； PDPTE 中保存了下一级表的物理地址，该表叫做 Page Directory (PD)； 虚拟地址的 21 ~ 29 位用于索引 PD，定位到一个 PDE； PDE 中保存了下一级表的物理地址，该表叫做 Page Table (PT)； 虚拟地址的 12 ~ 20 位用于索引 PT，定位到一个 PTE； PTE 中保存了用于计算最终物理地址的基地址； 虚拟地址的 0 ~ 11 位是偏移量，和上一步的基地址相加得到最终的物理地址。 一些概念 接下来使用分页结构(paging structur, PS)表示上面的各类表，使用 PxE 表示各类表中的条目。" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://www.zoemurmure.top/posts/x64_paging/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2023-01-10T15:09:38+08:00" />
+<meta property="article:modified_time" content="2023-01-10T15:09:38+08:00" />
+
+		<meta itemprop="name" content="X64 分页机制">
+<meta itemprop="description" content="前言 在学习 HEVD 的过程中发现有很多知识不了解，这篇文章因此出现，文章内容翻译自参考资料^[1]^，出于学习目的考虑，内容和结构有所调整。
+基本定义 首先明确分页(Paging)出现的原因，是为了实现虚拟地址，更方便的做虚拟地址和物理地址的转换。 理论上说，64 位机器可以拥有 2^64^ 字节的内存，但是出于地址转换的效率考虑，并不是所有的 64 位都是可用的。在实际应用时，48~63 位的数值与 47 位保持相同，因为 64 位机器中存在两端有效地址：
+0 ~ 0x7FFF FFFFFFFF 0x8000 00000000 ~ 0xFFFFFFFF FFFFFFFF 之所以采用这样的机制，是为了与 32 位机器保持一致，同时便于地址的转换。因为在 32 位机器中，地址空间被平分为两部分，高地址部分用于存储系统代码和数据，这样可以很好的区分应用程序代码和系统代码。由于 48~63 位与 47 位保持一致，因此在做地址转换时不需要考虑这部分数值，而且如果之后 CPU 的能力增强，就可以很方便的使用更多位数，也不需要改变目前的设置。
+如果一个虚拟地址的 47~63 位是全 1 或全 0 的，我们就说这个地址是规范(canonical)地址。因此 x64 代码中的所有地址都应该是规范地址，使用非规范地址会导致页错误异常。
+地址转换 流程 CPU 使用一系列保存在内存中的表对地址进行转换，整个流程如下：
+CR3 寄存器中存储了第一级表的物理地址，该表叫做 Page Map Level 4 (PML4)，大小为 4KB，包含了大小为 8 字节的条目PML4E，下面介绍的其他表具有相同的大小及结构； 虚拟地址的 39 ~ 47 位用于索引 PML4，定位到一个 PML4E； PML4E 中保存了下一级表的物理地址，该表叫做 Page Directory Pointer Table (PDPT)； 虚拟地址的 30 ~ 38 位用于索引 PDPT，定位到一个 PDPTE； PDPTE 中保存了下一级表的物理地址，该表叫做 Page Directory (PD)； 虚拟地址的 21 ~ 29 位用于索引 PD，定位到一个 PDE； PDE 中保存了下一级表的物理地址，该表叫做 Page Table (PT)； 虚拟地址的 12 ~ 20 位用于索引 PT，定位到一个 PTE； PTE 中保存了用于计算最终物理地址的基地址； 虚拟地址的 0 ~ 11 位是偏移量，和上一步的基地址相加得到最终的物理地址。 一些概念 接下来使用分页结构(paging structur, PS)表示上面的各类表，使用 PxE 表示各类表中的条目。"><meta itemprop="datePublished" content="2023-01-10T15:09:38+08:00" />
+<meta itemprop="dateModified" content="2023-01-10T15:09:38+08:00" />
+<meta itemprop="wordCount" content="521">
+<meta itemprop="keywords" content="os," />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	<link rel="stylesheet" href="/css/custom.css">
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security 逻辑门" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security 逻辑门</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/history/">
+				
+				<span class="menu__text">历史文章</span>
+				
+			</a>
+		</li>
+	</ul>
+</nav>
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">X64 分页机制</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-01-10T15:09:38&#43;08:00">2023-01-10</time></div><div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/" rel="category">基础知识</a>
+	</span>
+</div></div>
+		</header>
+		
+<div class="post__toc toc">
+	<div class="toc__title">Page content</div>
+	<div class="toc__menu">
+		<nav id="TableOfContents">
+  <ul>
+    <li><a href="#前言">前言</a></li>
+    <li><a href="#基本定义">基本定义</a></li>
+    <li><a href="#地址转换">地址转换</a>
+      <ul>
+        <li><a href="#流程">流程</a></li>
+        <li><a href="#一些概念">一些概念</a></li>
+        <li><a href="#不同进程的地址空间">不同进程的地址空间</a></li>
+        <li><a href="#pxe-结构">PxE 结构</a></li>
+        <li><a href="#pxe的映射地址范围">PxE的映射地址范围</a></li>
+        <li><a href="#pde-中的-pat-标志">PDE 中的 PAT 标志</a></li>
+        <li><a href="#缓存方式">缓存方式</a></li>
+      </ul>
+    </li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ul>
+</nav>
+	</div>
+</div><div class="content post__content clearfix">
+			<h2 id="前言">前言</h2>
+<p>在学习 HEVD 的过程中发现有很多知识不了解，这篇文章因此出现，文章内容翻译自参考资料^[1]^，出于学习目的考虑，内容和结构有所调整。</p>
+<h2 id="基本定义">基本定义</h2>
+<p>首先明确分页(Paging)出现的原因，是为了实现虚拟地址，更方便的做虚拟地址和物理地址的转换。
+理论上说，64 位机器可以拥有 2^64^ 字节的内存，但是出于地址转换的效率考虑，并不是所有的 64 位都是可用的。在实际应用时，48~63 位的数值与 47 位保持相同，因为 64 位机器中存在两端有效地址：</p>
+<ul>
+<li>0 ~ 0x7FFF FFFFFFFF</li>
+<li>0x8000 00000000 ~ 0xFFFFFFFF FFFFFFFF</li>
+</ul>
+<p>之所以采用这样的机制，是为了与 32 位机器保持一致，同时便于地址的转换。因为在 32 位机器中，地址空间被平分为两部分，高地址部分用于存储系统代码和数据，这样可以很好的区分应用程序代码和系统代码。由于 48~63 位与 47 位保持一致，因此在做地址转换时不需要考虑这部分数值，而且如果之后 CPU 的能力增强，就可以很方便的使用更多位数，也不需要改变目前的设置。</p>
+<p>如果一个虚拟地址的 47~63 位是全 1 或全 0 的，我们就说这个地址是规范(canonical)地址。因此 x64 代码中的所有地址都应该是规范地址，使用非规范地址会导致页错误异常。</p>
+<h2 id="地址转换">地址转换</h2>
+<h3 id="流程">流程</h3>
+<p>CPU 使用一系列保存在内存中的表对地址进行转换，整个流程如下：</p>
+<ul>
+<li>CR3 寄存器中存储了第一级表的物理地址，该表叫做 Page Map Level 4 (PML4)，大小为 4KB，包含了大小为 8 字节的条目PML4E，下面介绍的其他表具有相同的大小及结构；</li>
+<li>虚拟地址的 39 ~ 47 位用于索引 PML4，定位到一个 PML4E；</li>
+<li>PML4E 中保存了下一级表的物理地址，该表叫做 Page Directory Pointer Table (PDPT)；</li>
+<li>虚拟地址的 30 ~ 38 位用于索引 PDPT，定位到一个 PDPTE；</li>
+<li>PDPTE 中保存了下一级表的物理地址，该表叫做 Page Directory (PD)；</li>
+<li>虚拟地址的 21 ~ 29 位用于索引 PD，定位到一个 PDE；</li>
+<li>PDE 中保存了下一级表的物理地址，该表叫做 Page Table (PT)；</li>
+<li>虚拟地址的 12 ~ 20 位用于索引 PT，定位到一个 PTE；</li>
+<li>PTE 中保存了用于计算最终物理地址的基地址；</li>
+<li>虚拟地址的 0 ~ 11 位是偏移量，和上一步的基地址相加得到最终的物理地址。</li>
+</ul>
+<p><img src="/img/2022-10-27-16-29-39.png" alt="address translation"></p>
+<h3 id="一些概念">一些概念</h3>
+<p><em>接下来使用分页结构(paging structur, PS)表示上面的各类表，使用 PxE 表示各类表中的条目。</em></p>
+<p>由于分页结构的大小为 4KB，每个条目大小为 8 字节，因此每个分页结构中包含 512 个条目，需要 9 比特的数值进行索引。</p>
+<p>根据设计，分页结构的起始地址要与 4KB 对齐，这样的地址 0~11 位都是 0，因此系统使用这 12 位空间保存和地址转换相关的控制信息。PTE 中保存的物理地址基地址也遵循这一机制。</p>
+<p>如果虚拟地址的 12~63 位相同，那么基于以上地址转换规则，系统就会定位到同一物理地址基地址处，该基地址与 4KB 对齐。由于最终作为偏移量的数值是 12 位，可以覆盖的地址范围就是 2^12^，即 4KB。这个与 4KB 对齐并且大小为 4KB 的地址空间，就是一个物理页(physical page)。物理页的起始地址除以 4K 得到的数值叫做页帧编号(page frame number, PFN)。</p>
+<p>同样的，把虚拟地址除以 4K (右移 12 位)得到的就是虚拟页号，虚拟页号中包含了所有需要定位到 PFN 的信息。虚拟页号相同的这一块虚拟地址空间同样与 4KB 对齐，并且大小也是 4KB，这块空间就叫做虚拟页(virtual page)。同一虚拟页中的地址转换得到的物理地址也位于同一物理页，所以可以说该虚拟页映射到该物理页。</p>
+<h3 id="不同进程的地址空间">不同进程的地址空间</h3>
+<p>从上面的地址转换流程可以发现，如果一开始从 CR3 寄存器中获取到的 PML4 物理地址不同，那么同一虚拟地址就会映射到完全不同的物理地址上，系统就是以此来实现每个进程不同的地址空间的。</p>
+<h3 id="pxe-结构">PxE 结构</h3>
+<p>上面提到了，PxE 的大小为 8 字节，其中 0~11 位中保存了地址转换相关的控制信息，下面说明其具体结构：</p>
+<pre tabindex="0"><code>| |   62:52   |          51:12          |          11:0         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|           |                         | | | | |P| | |P|P|U|R| |
+|D|     i     |           PFN           |i|i|i|G|A|D|A|C|W|/|/|P|
+| |           |                         | | | | |T| | |D|T|S|W| |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><ul>
+<li>P (0)
+<ul>
+<li>1 表示 PxE 有效，指向下一级分页结构或者映射的物理页的物理地址；</li>
+<li>0 表示 PxE 无效，映射地址范围内的空间都不会真的映射到一个物理地址上，这种情况下，剩余的 63 位空间由应用程序使用；</li>
+</ul>
+</li>
+<li>R/W (1)
+<ul>
+<li>1 表示映射地址范围内的空间可写，0 表示不可写；</li>
+<li>在 CR0 寄存器的 16 位 WP 也具有相似功能：当该位为 1 时，特权进程无法写入只读页，即 PxE 的 R/W 有效；当该位为 0 时，特权进程可以写入只读页，即便 R/W 位为 0。</li>
+</ul>
+</li>
+<li>U/S (2)
+<ul>
+<li>1 表示映射地址范围内的空间可以在 CPL 3 时访问；</li>
+<li>0 表示映射地址范围内的空间只能在 CPL 0 时访问；</li>
+</ul>
+</li>
+<li>PWT (3): 控制如何对内存进行缓存；</li>
+<li>PCD (4): 控制如何对内存进行缓存；</li>
+<li>A (5): 用于标志之前是否有指令访问过映射地址范围内的空间；</li>
+<li>D (6)
+<ul>
+<li>用于标志之前是否有指令写入过映射地址范围内的空间；</li>
+<li>该标志只用于分页结构层次中的底层结构，即 PTE 以及 PAT 标志为 1 的 PDE;</li>
+</ul>
+</li>
+<li>PAT (7)
+<ul>
+<li>在 PML4E 中作为保留位设置为 0；</li>
+<li>在 PDPTE 中可以设置为 1，Windows 未使用该功能；</li>
+<li>在 PDE 中可以设置为 1，但是会改变地址转换的方式；</li>
+<li>在 PTE 中，控制如何对内存进行缓存；</li>
+<li>上面讨论的地址转换流程发生在 PDPTE 和 PDE 中该位为 0 时；</li>
+</ul>
+</li>
+<li>G (8)
+<ul>
+<li>控制该条目如何在 TLB 中缓存；</li>
+<li>该标志只用于分页结构层次中的底层结构，即 PTE 以及 PAT 标志为 1 的 PDE;</li>
+</ul>
+</li>
+<li>i: 处理器忽略该位，用于应用程序；</li>
+<li>PFN (12~51): 保存了条目指向的物理地址的 PFN；</li>
+<li>XD (63)
+<ul>
+<li>1 表示映射地址范围内的空间不可执行;</li>
+<li>0 表示映射地址范围内的空间可执行；</li>
+</ul>
+</li>
+</ul>
+<h3 id="pxe的映射地址范围">PxE的映射地址范围</h3>
+<p>上面对 PxE 结构的介绍中提到了映射地址范围的问题，这里做一个说明。</p>
+<p>就像是 PTE 指向映射物理地址基地址，当 PTE 固定时，它可以表示的地址范围是 2^12^字节，即 4KB。以此类推：</p>
+<ul>
+<li>PML4E 的映射地址范围是 2^39^字节，即 512GB；</li>
+<li>PDPTE 的映射地址范围是 2^30^字节，即 1GB；</li>
+<li>PDE 的映射地址范围是 2^21^字节，即 2MB；</li>
+</ul>
+<h3 id="pde-中的-pat-标志">PDE 中的 PAT 标志</h3>
+<p>上面对 PxE 结构的介绍中提到，如果设置了 PDE 中的 PAT 标志，会改变地址转换的方式，下面对此进行说明。</p>
+<p>如果 PDE 中的 PAT 为 1，PDE 中保存的物理地址直接表示映射物理地址的基地址，虚拟地址中的 0~20 位表示偏移量。这种地址转换方式可以获得 2MB 大小的大页(large page)。</p>
+<p>根据设计，PDE 中保存的物理地址是 2MB 对齐的，因此它的 0~20 位都用来保存控制信息，结构如下：</p>
+<pre tabindex="0"><code>| |   62:52   |     51:21     | 20:13 | |          11:0         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|           |               |       |P| | | | | | | |P|P|U|R| |
+|D|     i     |      PFN      |  res  |A|i|i|i|G|1|D|A|C|W|/|/|P|
+| |           |               |       |T| | | | | | | |D|T|S|W| |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><ul>
+<li>PAT
+<ul>
+<li>原本的 PAT 位于 第 7 位，但是在大页的情况下，PDE 的第 7 位固定为 1，因此 PAT 标志移动到了第 12 位；</li>
+<li>控制如何对内存进行缓存。注意这里和 PTE 中的 PAT 标志意义相同，因为 PAT 只和分页结构层次中的底层结构有关，也就是 PTE 或者大页情况下的 PDE，而原本的 PAT 位用于区分 PDE 是否为大页情况，因此才单独分出一个第 12 位作为 PAT 标志。</li>
+</ul>
+</li>
+</ul>
+<h3 id="缓存方式">缓存方式</h3>
+<p>根据上面的地址转换流程，每次将虚拟地址转换为物理地址时，CPU 需要进行四次内存访问，因为内存访问需要的时间远大于指令执行时间，所以为了提升效率，地址转换会通过两种方式进行缓存：页表缓存(translation lookaside buffer, TLB) 和 分页结构缓存。</p>
+<p>TLB 缓存中包含了从虚拟地址转换为物理地址的完整信息，包括控制信息。因此如果在 TLB 中找到了某个虚拟地址的转换结果，系统不会再访问内存获取分页结构了。</p>
+<p>分页结构缓存中只保存了部分信息：PML4E 缓存中保存了获取 PDPT 的 PFN 的信息，PDPTE 缓存中保存了获取 PD 的 PFN 的信息， PDE 缓存中保存了获取 PT 的 PFN 的信息。</p>
+<p>如果代码中修改了内存中的 PxE 结构，已缓存的内容并不会被更新，因此需要手动使缓存失效。</p>
+<p>如果 CR3 寄存器的内容出现改变，系统会自动使缓存失效。PTE 和 大页 PDE 中的 G 标志会改变这一行为，因为系统中存在一些由所有地址空间共享的内存，这部分内存的缓存不需要失效，因此可以设置 G 标志，表示 TLB 缓存中保存的相关页的地址转换信息在 CR3 更新后不会失效。</p>
+<h2 id="参考资料">参考资料</h2>
+<ol>
+<li>What Makes It Page?: The Windows 7 (x64) Virtual Memory Manager</li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/os/" rel="tag">os</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+<div class="authorbox clearfix">
+	<figure class="authorbox__avatar">
+		<img alt="zoemurmure avatar" src="/img/avatar.jpg" class="avatar" height="90" width="90">
+	</figure>
+	<div class="authorbox__header">
+		<span class="authorbox__name">About zoemurmure</span>
+	</div>
+	<div class="authorbox__description">
+		二进制安全研究菜鸟
+	</div>
+</div>
+
+<nav class="pager flex">
+	<div class="pager__item pager__item--prev">
+		<a class="pager__link" href="/posts/hevd_stackoberflowgs/" rel="prev">
+			<span class="pager__subtitle">«&thinsp;Previous</span>
+			<p class="pager__title">[HEVD exploit 系列] StackOverflowGS</p>
+		</a>
+	</div>
+	<div class="pager__item pager__item--next">
+		<a class="pager__link" href="/posts/csrss_base/" rel="next">
+			<span class="pager__subtitle">Next&thinsp;»</span>
+			<p class="pager__title">CSRSS 基础知识</p>
+		</a>
+	</div>
+</nav>
+
+<section class="comments">
+	<div id="disqus_thread"></div>
+<script type="application/javascript">
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "logic-gate" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</section>
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2023 Logic Security 逻辑门.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+<script src="/js/custom.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.6/MathJax.js?config=TeX-AMS-MML_HTMLorMML" async></script>
+</body>
+</html>

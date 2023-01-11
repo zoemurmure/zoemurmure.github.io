@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Categories on Logic Security 逻辑门</title>
+    <link>https://www.zoemurmure.top/categories/</link>
+    <description>Recent content in Categories on Logic Security 逻辑门</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh</language>
+    <lastBuildDate>Tue, 10 Jan 2023 17:07:41 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/categories/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>基础知识</title>
+      <link>https://www.zoemurmure.top/categories/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/</link>
+      <pubDate>Tue, 10 Jan 2023 17:07:41 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/categories/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>HEVD</title>
+      <link>https://www.zoemurmure.top/categories/hevd/</link>
+      <pubDate>Tue, 10 Jan 2023 11:18:29 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/categories/hevd/</guid>
+      <description></description>
+    </item>
+    
+  </channel>
+</rss>

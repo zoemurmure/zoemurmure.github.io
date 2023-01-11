@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>HEVD on Logic Security 逻辑门</title>
+    <link>https://www.zoemurmure.top/categories/hevd/</link>
+    <description>Recent content in HEVD on Logic Security 逻辑门</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh</language>
+    <lastBuildDate>Tue, 10 Jan 2023 11:18:29 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/categories/hevd/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>[HEVD exploit 系列] StackOverflowGS</title>
+      <link>https://www.zoemurmure.top/posts/hevd_stackoberflowgs/</link>
+      <pubDate>Tue, 10 Jan 2023 11:18:29 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/hevd_stackoberflowgs/</guid>
+      <description>0. 前言 HackSys Extreme Vulnerable Driver (HEVD) 是出于学习内核的漏洞利用技巧而开发的具有多个漏洞的 Windows 驱动程序。本文介绍了 Windows 10 64 位环境下如何绕过带有 /GS 保护措施的栈溢出漏洞，涉及 SMEP 和 /GS 两个保护措施。文章中仅贴出部分代码，完整代码见：https://github.com/zoemurmure/HEVD-Exploit
+1. 目标函数 TriggerBufferOverflowStackGS
+__int64 __fastcall TriggerBufferOverflowStackGS(void *src, unsigned __int64 Size) { char dst[512]; // [rsp+20h] [rbp-238h] BYREF memset(dst, 0, sizeof(dst)); ProbeForRead(src, 0x200ui64, 1u); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] UserBuffer: 0x%p\n&amp;#34;, src); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] UserBuffer Size: 0x%X\n&amp;#34;, Size); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] KernelBuffer: 0x%p\n&amp;#34;, dst); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] KernelBuffer Size: 0x%X\n&amp;#34;, 512i64); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] Triggering Buffer Overflow in Stack (GS)\n&amp;#34;); memmove(dst, src, Size); return 0i64; } 2.</description>
+    </item>
+    
+    <item>
+      <title>[HEVD exploit 系列] StackOverflow</title>
+      <link>https://www.zoemurmure.top/posts/hevd_stackoverflow/</link>
+      <pubDate>Tue, 10 Jan 2023 11:18:24 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/hevd_stackoverflow/</guid>
+      <description>目标函数 TriggerBufferOverflowStack
+__int64 __fastcall TriggerBufferOverflowStack(void *Src, unsigned __int64 Size) { char Dst[2048]; // [rsp+20h] [rbp-818h] BYREF memset(Dst, 0, sizeof(Dst)); ProbeForRead(Src, 0x800ui64, 1u); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] UserBuffer: 0x%p\n&amp;#34;, Src); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] UserBuffer Size: 0x%X\n&amp;#34;, Size); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] KernelBuffer: 0x%p\n&amp;#34;, Dst); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] KernelBuffer Size: 0x%X\n&amp;#34;, 0x800i64); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] Triggering Buffer Overflow in Stack\n&amp;#34;); memmove(Dst, Src, Size); return 0i64; } 保护措施：SMEP^[3]^ 定义 SMEP，即 Supervisor Mode Execution Protection，主管模式执行保护。该措施可以保证应用程序在更高特权级别运行时，不会在不受信任的程序内存中执行代码。
+该机制通过控制寄存器^[2]^ CR4 的第 20 位实现，1 表示启用。</description>
+    </item>
+    
+  </channel>
+</rss>
