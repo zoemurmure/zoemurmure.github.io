@@ -6,7 +6,27 @@
     <description>Recent content on Logic Security 逻辑门</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>zh</language>
-    <lastBuildDate>Tue, 10 Jan 2023 17:07:41 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Tue, 17 Jan 2023 19:06:30 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析（一）</title>
+      <link>https://www.zoemurmure.top/posts/cve_2023_21752_1/</link>
+      <pubDate>Tue, 17 Jan 2023 19:06:30 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/cve_2023_21752_1/</guid>
+      <description>0. 前言 CVE-2023-21752 是 2023 年开年微软第一个有 exploit 的漏洞，原本以为有利用代码会很好分析，结果时间竟然都花在了漏洞点定位上，由此可见我之前在漏洞分析流程上偷了多少懒，以此记录并警示。
+1. 漏洞简介 根据官方信息，该漏洞是 Windows Backup Service 中的权限提升漏洞，经过身份认证的攻击者可利用此漏洞提升至 SYSTEM 权限。成功利用此漏洞需要攻击者赢得竞争条件。
+EXP 代码位于 Github，提供了两个版本，版本 1 可以实现任意文件删除，可稳定复现；版本 2 尝试利用任意删除实现本地提权，但是复现不稳定。
+2. 漏洞点定位的曲折之路 这部分内容是一些失败的过程记录，以及我自己的碎碎念，防止自己之后犯同样的错误，只对漏洞分析感兴趣的可以略过 2.1 和 2.3 小节。
+2.1 失败的过程 首先尝试复现，提权版本的利用程序在虚拟机上没有复现成功，任意文件删除版本的利用程序由于我没有使用完整路径，也没有复现成功（但是此时我还不知道原因）。
+之后我尝试进行补丁对比，但是想要进行补丁对比首先要确定漏洞位于哪个文件中，根据漏洞利用程序的文件命名 SDRsvcEop，找到了文件 sdrsvc.dll，但是补丁对比后并没有发现差异。
+这期间我还搜索了关于这个漏洞的信息，但是除了漏洞通告和 GitHub 的 exp 代码外，没有找到其他内容。这里吐槽一下某数字站的漏洞通告，竟然说这个漏洞是 Windows Server Backup (WSB) 上的……
+这个时候我已经开始对漏洞利用代码进行分析了，一方面通过微软的文档，了解代码中一些函数和参数的使用，一方面开始在 Windbg 上进行调试，并由此找到了 rpcrt4.dll、combase.dll 这些和漏洞无关的文件。
+在调试过程中，我花费了很多时间在 DeviceIoControl 这个函数上，因为之前看的很多漏洞最终定位的文件都是 sys 驱动文件，因此虽然我在心里仍旧为 dll 文件留了一些位置，但是在方法选择上，我仍旧趋向去寻找某个 sys 文件。所以我想要在利用程序执行到 DeviceIoControl 的时候，在用户态转内核态的入口位置设置一个断点，然后监控系统究竟执行到了哪里。当然，这个方法失败了，并且搞得我心烦意乱。
+我在这个时候才想起来要把利用程序参数的相对路径改成绝对路径，并且成功复现了任意文件删除。虽然但是，这之后我又走了弯路……
+之前学习病毒分析的时候，有一个算是标准的流程，就是要先执行病毒，看一下它的动态特征，以此方便后面的动态分析。之前看的很多漏洞分析文章，也都是要执行一下 poc 或者 exp，进行进程监控，但是我完全忘记了，或者说我虽然想到了这个方法，但是并没有十分重视。
+我在继续分析漏洞利用代码，在此期间看了一些关于 DCOM 的资料，确定 sdrsvc.</description>
+    </item>
+    
     <item>
       <title>CSRSS 基础知识</title>
       <link>https://www.zoemurmure.top/posts/csrss_base/</link>

@@ -4,15 +4,15 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>os - Logic Security 逻辑门</title>
+	<title>cve - Logic Security 逻辑门</title>
 	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
 	<meta name="description" content="">
-		<meta property="og:title" content="os" />
+		<meta property="og:title" content="cve" />
 <meta property="og:description" content="zoemurmure 的安全博客，欢迎关注同名微信公众号" />
 <meta property="og:type" content="website" />
-<meta property="og:url" content="https://www.zoemurmure.top/tags/os/" />
+<meta property="og:url" content="https://www.zoemurmure.top/tags/cve/" />
 
-		<meta itemprop="name" content="os">
+		<meta itemprop="name" content="cve">
 <meta itemprop="description" content="zoemurmure 的安全博客，欢迎关注同名微信公众号">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link rel="dns-prefetch" href="//fonts.googleapis.com">
@@ -21,7 +21,7 @@
 
 	<link rel="stylesheet" href="/css/style.css">
 	<link rel="stylesheet" href="/css/custom.css">
-	<link rel="alternate" type="application/rss+xml" href="/tags/os/index.xml" title="Logic Security 逻辑门">
+	<link rel="alternate" type="application/rss+xml" href="/tags/cve/index.xml" title="Logic Security 逻辑门">
 
 	<link rel="shortcut icon" href="/favicon.ico">
 		
@@ -82,54 +82,31 @@ if (!doNotTrack) {
 			
 <main class="main list" role="main">
 	<header class="main__header">
-		<h1 class="main__title">os</h1>
+		<h1 class="main__title">cve</h1>
 	</header><article class="list__item post">
 	
 	<header class="list__header">
 		<h2 class="list__title post__title">
-			<a href="/posts/csrss_base/" rel="bookmark">
-			CSRSS 基础知识
+			<a href="/posts/cve_2023_21752_1/" rel="bookmark">
+			[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析（一）
 			</a>
 		</h2>
 		<div class="list__meta meta"><div class="meta__item-author meta__item">
 	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
 </div>
 <div class="meta__item-datetime meta__item">
-	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-01-10T17:07:41&#43;08:00">2023-01-10</time></div><div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/" rel="category">基础知识</a>
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-01-17T19:06:30&#43;08:00">2023-01-17</time></div><div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" rel="category">漏洞分析</a>
 	</span>
 </div></div>
 	</header>
 	<div class="content list__excerpt post__content clearfix">
-		0. 前言 这是一篇不完整的 csrss 介绍，因为前段时间在看 csrss 相关的漏送，所以对相关的知识做了一下整理，因此你无法只通过这篇文章完全了解 csrss，但是如果这篇文章能够解答你在学习 csrss 时的一些疑惑，那么它的目的就达成了。
-1. 历史背景 1.1 微内核(microkernel)的概念 微内核指一个现代化、模块化操作系统中最核心的部分，微内核操作系统有两个原则：
-模块化、封装性和数据隐藏。即操作系统中有且仅有一部分对一个特定功能具有系统范围内的责任，操作系统中的其他部分，包括应用程序只能通过定义好的接口对使用该功能； 操作系统中的大部分功能在用户/应用程序模式下执行，
+		0. 前言 CVE-2023-21752 是 2023 年开年微软第一个有 exploit 的漏洞，原本以为有利用代码会很好分析，结果时间竟然都花在了漏洞点定位上，由此可见我之前在漏洞分析流程上偷了多少懒，以此记录并警示。
+1. 漏洞简介 根据官方信息，该漏洞是 Windows Backup Service 中的权限提升漏洞，经过身份认证的攻击者可利用此漏洞提升至 SYSTEM 权限。成功利用此漏洞需要攻击者赢得竞争条件。
+EXP 代码位于 Github，提供了两个版本，版本 1 可以实现任意文件删除，可稳定复现；版本 2 尝试利用任意删除实现本地提权，但是复现不稳定。
+2. 漏洞点定位的曲折
 	</div>
 	<div class="list__footer clearfix">
-		<a class="list__footer-readmore btn" href="/posts/csrss_base/">Read more…</a>
-	</div>
-</article><article class="list__item post">
-	
-	<header class="list__header">
-		<h2 class="list__title post__title">
-			<a href="/posts/x64_paging/" rel="bookmark">
-			X64 分页机制
-			</a>
-		</h2>
-		<div class="list__meta meta"><div class="meta__item-author meta__item">
-	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
-</div>
-<div class="meta__item-datetime meta__item">
-	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-01-10T15:09:38&#43;08:00">2023-01-10</time></div><div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/" rel="category">基础知识</a>
-	</span>
-</div></div>
-	</header>
-	<div class="content list__excerpt post__content clearfix">
-		前言 在学习 HEVD 的过程中发现有很多知识不了解，这篇文章因此出现，文章内容翻译自参考资料^[1]^，出于学习目的考虑，内容和结构有所调整。
-基本定义 首先明确分页(Paging)出现的原因，是为了实现虚拟地址，更方便的做虚拟地址和物理地址的转换。 理论上说，64 位机器可以拥有 2^64^ 字节的内存，但是出于地址转换的效率考虑，并不是所有的 64 位都是可用的。在实际应用时，48~63 位的数值与 47 位保持相同，因为 64 位机器中存在两端有效地址：
-0 ~ 0x7FFF FFFFFFFF 0x8000 00000000 ~ 0xFFFFFFFF FFFFFFFF 之所以采用这样的
-	</div>
-	<div class="list__footer clearfix">
-		<a class="list__footer-readmore btn" href="/posts/x64_paging/">Read more…</a>
+		<a class="list__footer-readmore btn" href="/posts/cve_2023_21752_1/">Read more…</a>
 	</div>
 </article>
 </main>
