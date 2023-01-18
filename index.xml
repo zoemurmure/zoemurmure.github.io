@@ -81,42 +81,6 @@ __int64 __fastcall TriggerBufferOverflowStack(void *Src, unsigned __int64 Size) 
     
     <item>
       <title>历史文章合集</title>
-      <link>https://www.zoemurmure.top/posts/history_posts/</link>
-      <pubDate>Tue, 10 Jan 2023 11:14:05 +0800</pubDate>
-      
-      <guid>https://www.zoemurmure.top/posts/history_posts/</guid>
-      <description>以前写的一些文章，按照时间倒序排列
-如何阅读只包含特殊符号的powershell脚本
-Golang版本简易fuzzer及debugger实践
-Chrom V8分析入门——Google CTF2018 justintime分析
-详细分析CVE-2021-40444远程命令执行漏洞
-全网最详细CVE-2014-0502 Adobe Flash Player双重释放漏洞分析
-再探格式化字符串漏洞：CVE-2012-3569 ovftool.exe
-殊途同归的CVE-2012-0774 TrueType字体整数溢出漏洞分析
-CVE-2012-0003 winmm.dll MIDI文件堆溢出漏洞分析及利用
-CVE-2011-0104 Excel TOOLBARDEF Record栈溢出漏洞分析与利用
-跳转到shellcode的方法——Exploit编写系列教程学习笔记2
-CVE-2011-2110 AdobeFlashPlayer数组越界访问漏洞分析
-超级长的IE调试总结：CVE-2013-1347 IE CGenericElement UAF漏洞分析
-如何利用栈溢出漏洞1——Exploit编写系列教程学习笔记
-极为详细的一次双重释放漏洞调试分析经历
-格式化字符串漏洞利用方法及CVE-2012-0809漏洞分析
-CVE-2011-0027 Microsoft Data Access Components整数溢出漏洞分析
-我竟然发现了书中的一个bug：CVE-2010-2553 堆溢出漏洞分析
-新的漏洞分析体验：CVE-2010-3333 RTF栈缓冲区溢出漏洞
-CVE-2010-2883分析_更新：如何自己构造poc文件
-一次上当受骗的样本分析经验
-ms08-067及msf exploit调试与分析
-0day安全学习笔记：MS06-040漏洞分析
-python exe文件解包方法总结
-双向进攻：分析tcpdump DOS漏洞成因
-一个KimsukyAPT样本分析
-可以修改indexing string的base64编码实现
-CVE-2020-8816: Pi-hole中的远程代码执行漏洞分析及复现</description>
-    </item>
-    
-    <item>
-      <title>历史文章合集</title>
       <link>https://www.zoemurmure.top/history/</link>
       <pubDate>Wed, 21 Jul 2021 21:44:54 +0800</pubDate>
       

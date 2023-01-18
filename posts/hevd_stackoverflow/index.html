@@ -6,20 +6,16 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<title>[HEVD exploit 系列] StackOverflow - Logic Security 逻辑门</title>
 	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
-	<meta name="description" content="">
+	<meta name="description" content="hevd windows kernel exploit stackovergs 学习">
 		<meta property="og:title" content="[HEVD exploit 系列] StackOverflow" />
-<meta property="og:description" content="目标函数 TriggerBufferOverflowStack
-__int64 __fastcall TriggerBufferOverflowStack(void *Src, unsigned __int64 Size) { char Dst[2048]; // [rsp&#43;20h] [rbp-818h] BYREF memset(Dst, 0, sizeof(Dst)); ProbeForRead(Src, 0x800ui64, 1u); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] UserBuffer: 0x%p\n&#34;, Src); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] UserBuffer Size: 0x%X\n&#34;, Size); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] KernelBuffer: 0x%p\n&#34;, Dst); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] KernelBuffer Size: 0x%X\n&#34;, 0x800i64); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] Triggering Buffer Overflow in Stack\n&#34;); memmove(Dst, Src, Size); return 0i64; } 保护措施：SMEP^[3]^ 定义 SMEP，即 Supervisor Mode Execution Protection，主管模式执行保护。该措施可以保证应用程序在更高特权级别运行时，不会在不受信任的程序内存中执行代码。
-该机制通过控制寄存器^[2]^ CR4 的第 20 位实现，1 表示启用。" />
+<meta property="og:description" content="hevd windows kernel exploit stackovergs 学习" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://www.zoemurmure.top/posts/hevd_stackoverflow/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2023-01-10T11:18:24+08:00" />
 <meta property="article:modified_time" content="2023-01-10T11:18:24+08:00" />
 
 		<meta itemprop="name" content="[HEVD exploit 系列] StackOverflow">
-<meta itemprop="description" content="目标函数 TriggerBufferOverflowStack
-__int64 __fastcall TriggerBufferOverflowStack(void *Src, unsigned __int64 Size) { char Dst[2048]; // [rsp&#43;20h] [rbp-818h] BYREF memset(Dst, 0, sizeof(Dst)); ProbeForRead(Src, 0x800ui64, 1u); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] UserBuffer: 0x%p\n&#34;, Src); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] UserBuffer Size: 0x%X\n&#34;, Size); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] KernelBuffer: 0x%p\n&#34;, Dst); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] KernelBuffer Size: 0x%X\n&#34;, 0x800i64); DbgPrintEx(0x4Du, 3u, &#34;[&#43;] Triggering Buffer Overflow in Stack\n&#34;); memmove(Dst, Src, Size); return 0i64; } 保护措施：SMEP^[3]^ 定义 SMEP，即 Supervisor Mode Execution Protection，主管模式执行保护。该措施可以保证应用程序在更高特权级别运行时，不会在不受信任的程序内存中执行代码。
-该机制通过控制寄存器^[2]^ CR4 的第 20 位实现，1 表示启用。"><meta itemprop="datePublished" content="2023-01-10T11:18:24+08:00" />
+<meta itemprop="description" content="hevd windows kernel exploit stackovergs 学习"><meta itemprop="datePublished" content="2023-01-10T11:18:24+08:00" />
 <meta itemprop="dateModified" content="2023-01-10T11:18:24+08:00" />
 <meta itemprop="wordCount" content="724">
 <meta itemprop="keywords" content="HEVD,exploit,binary," />
@@ -56,7 +52,7 @@ if (!doNotTrack) {
 					<img class="logo__img" src="/img/blog_img.png">
 				</div><div class="logo__item logo__text">
 					<div class="logo__title">Logic Security 逻辑门</div>
-					
+					<div class="logo__tagline">欢迎关注同名微信公众号(*^_^*)</div>
 				</div>
 		</a>
 	</div>
@@ -369,12 +365,6 @@ A: 和 ① 是同样的问题，Src 和 Size 由调用者从用户态提供，�
 </div>
 
 <nav class="pager flex">
-	<div class="pager__item pager__item--prev">
-		<a class="pager__link" href="/posts/history_posts/" rel="prev">
-			<span class="pager__subtitle">«&thinsp;Previous</span>
-			<p class="pager__title">历史文章合集</p>
-		</a>
-	</div>
 	<div class="pager__item pager__item--next">
 		<a class="pager__link" href="/posts/hevd_stackoberflowgs/" rel="next">
 			<span class="pager__subtitle">Next&thinsp;»</span>

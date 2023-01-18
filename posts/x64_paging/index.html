@@ -6,26 +6,16 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<title>X64 分页机制 - Logic Security 逻辑门</title>
 	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
-	<meta name="description" content="">
+	<meta name="description" content="Windows x64分页机制">
 		<meta property="og:title" content="X64 分页机制" />
-<meta property="og:description" content="前言 在学习 HEVD 的过程中发现有很多知识不了解，这篇文章因此出现，文章内容翻译自参考资料^[1]^，出于学习目的考虑，内容和结构有所调整。
-基本定义 首先明确分页(Paging)出现的原因，是为了实现虚拟地址，更方便的做虚拟地址和物理地址的转换。 理论上说，64 位机器可以拥有 2^64^ 字节的内存，但是出于地址转换的效率考虑，并不是所有的 64 位都是可用的。在实际应用时，48~63 位的数值与 47 位保持相同，因为 64 位机器中存在两端有效地址：
-0 ~ 0x7FFF FFFFFFFF 0x8000 00000000 ~ 0xFFFFFFFF FFFFFFFF 之所以采用这样的机制，是为了与 32 位机器保持一致，同时便于地址的转换。因为在 32 位机器中，地址空间被平分为两部分，高地址部分用于存储系统代码和数据，这样可以很好的区分应用程序代码和系统代码。由于 48~63 位与 47 位保持一致，因此在做地址转换时不需要考虑这部分数值，而且如果之后 CPU 的能力增强，就可以很方便的使用更多位数，也不需要改变目前的设置。
-如果一个虚拟地址的 47~63 位是全 1 或全 0 的，我们就说这个地址是规范(canonical)地址。因此 x64 代码中的所有地址都应该是规范地址，使用非规范地址会导致页错误异常。
-地址转换 流程 CPU 使用一系列保存在内存中的表对地址进行转换，整个流程如下：
-CR3 寄存器中存储了第一级表的物理地址，该表叫做 Page Map Level 4 (PML4)，大小为 4KB，包含了大小为 8 字节的条目PML4E，下面介绍的其他表具有相同的大小及结构； 虚拟地址的 39 ~ 47 位用于索引 PML4，定位到一个 PML4E； PML4E 中保存了下一级表的物理地址，该表叫做 Page Directory Pointer Table (PDPT)； 虚拟地址的 30 ~ 38 位用于索引 PDPT，定位到一个 PDPTE； PDPTE 中保存了下一级表的物理地址，该表叫做 Page Directory (PD)； 虚拟地址的 21 ~ 29 位用于索引 PD，定位到一个 PDE； PDE 中保存了下一级表的物理地址，该表叫做 Page Table (PT)； 虚拟地址的 12 ~ 20 位用于索引 PT，定位到一个 PTE； PTE 中保存了用于计算最终物理地址的基地址； 虚拟地址的 0 ~ 11 位是偏移量，和上一步的基地址相加得到最终的物理地址。 一些概念 接下来使用分页结构(paging structur, PS)表示上面的各类表，使用 PxE 表示各类表中的条目。" />
+<meta property="og:description" content="Windows x64分页机制" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://www.zoemurmure.top/posts/x64_paging/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2023-01-10T15:09:38+08:00" />
 <meta property="article:modified_time" content="2023-01-10T15:09:38+08:00" />
 
 		<meta itemprop="name" content="X64 分页机制">
-<meta itemprop="description" content="前言 在学习 HEVD 的过程中发现有很多知识不了解，这篇文章因此出现，文章内容翻译自参考资料^[1]^，出于学习目的考虑，内容和结构有所调整。
-基本定义 首先明确分页(Paging)出现的原因，是为了实现虚拟地址，更方便的做虚拟地址和物理地址的转换。 理论上说，64 位机器可以拥有 2^64^ 字节的内存，但是出于地址转换的效率考虑，并不是所有的 64 位都是可用的。在实际应用时，48~63 位的数值与 47 位保持相同，因为 64 位机器中存在两端有效地址：
-0 ~ 0x7FFF FFFFFFFF 0x8000 00000000 ~ 0xFFFFFFFF FFFFFFFF 之所以采用这样的机制，是为了与 32 位机器保持一致，同时便于地址的转换。因为在 32 位机器中，地址空间被平分为两部分，高地址部分用于存储系统代码和数据，这样可以很好的区分应用程序代码和系统代码。由于 48~63 位与 47 位保持一致，因此在做地址转换时不需要考虑这部分数值，而且如果之后 CPU 的能力增强，就可以很方便的使用更多位数，也不需要改变目前的设置。
-如果一个虚拟地址的 47~63 位是全 1 或全 0 的，我们就说这个地址是规范(canonical)地址。因此 x64 代码中的所有地址都应该是规范地址，使用非规范地址会导致页错误异常。
-地址转换 流程 CPU 使用一系列保存在内存中的表对地址进行转换，整个流程如下：
-CR3 寄存器中存储了第一级表的物理地址，该表叫做 Page Map Level 4 (PML4)，大小为 4KB，包含了大小为 8 字节的条目PML4E，下面介绍的其他表具有相同的大小及结构； 虚拟地址的 39 ~ 47 位用于索引 PML4，定位到一个 PML4E； PML4E 中保存了下一级表的物理地址，该表叫做 Page Directory Pointer Table (PDPT)； 虚拟地址的 30 ~ 38 位用于索引 PDPT，定位到一个 PDPTE； PDPTE 中保存了下一级表的物理地址，该表叫做 Page Directory (PD)； 虚拟地址的 21 ~ 29 位用于索引 PD，定位到一个 PDE； PDE 中保存了下一级表的物理地址，该表叫做 Page Table (PT)； 虚拟地址的 12 ~ 20 位用于索引 PT，定位到一个 PTE； PTE 中保存了用于计算最终物理地址的基地址； 虚拟地址的 0 ~ 11 位是偏移量，和上一步的基地址相加得到最终的物理地址。 一些概念 接下来使用分页结构(paging structur, PS)表示上面的各类表，使用 PxE 表示各类表中的条目。"><meta itemprop="datePublished" content="2023-01-10T15:09:38+08:00" />
+<meta itemprop="description" content="Windows x64分页机制"><meta itemprop="datePublished" content="2023-01-10T15:09:38+08:00" />
 <meta itemprop="dateModified" content="2023-01-10T15:09:38+08:00" />
 <meta itemprop="wordCount" content="521">
 <meta itemprop="keywords" content="os," />
@@ -62,7 +52,7 @@ if (!doNotTrack) {
 					<img class="logo__img" src="/img/blog_img.png">
 				</div><div class="logo__item logo__text">
 					<div class="logo__title">Logic Security 逻辑门</div>
-					
+					<div class="logo__tagline">欢迎关注同名微信公众号(*^_^*)</div>
 				</div>
 		</a>
 	</div>

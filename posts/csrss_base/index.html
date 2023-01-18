@@ -6,30 +6,16 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<title>CSRSS 基础知识 - Logic Security 逻辑门</title>
 	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
-	<meta name="description" content="">
+	<meta name="description" content="csrss基础知识">
 		<meta property="og:title" content="CSRSS 基础知识" />
-<meta property="og:description" content="0. 前言 这是一篇不完整的 csrss 介绍，因为前段时间在看 csrss 相关的漏送，所以对相关的知识做了一下整理，因此你无法只通过这篇文章完全了解 csrss，但是如果这篇文章能够解答你在学习 csrss 时的一些疑惑，那么它的目的就达成了。
-1. 历史背景 1.1 微内核(microkernel)的概念 微内核指一个现代化、模块化操作系统中最核心的部分，微内核操作系统有两个原则：
-模块化、封装性和数据隐藏。即操作系统中有且仅有一部分对一个特定功能具有系统范围内的责任，操作系统中的其他部分，包括应用程序只能通过定义好的接口对使用该功能； 操作系统中的大部分功能在用户/应用程序模式下执行，只有微内核本身及硬件相关的小部分代码在内核态下执行。 遵循以上两个原则的操作系统叫做纯微内核系统，仅遵循第一个原则但不遵循第二个原则的操作系统叫做修改后的微内核(modified microkernel)或者宏内核(macrokernel)操作系统。商业性质的操作系统一般不会基于纯微内核进行设计，因为这样的架构计算成本太大。
-Windows NT 就是修改后的微内核系统，具有非常好的模块化和封装性，另一方面，从最初版本开始，Windows NT 就在内核态实现了高性能操作系统子系统，这些子系统可以在内核模式下与硬件交互以及相互交互，而不会影响处理器模式以及进程/线程转换的性能。作为内核态子系统实现的有内存管理器、集成缓存管理器、文件系统、对象/安全管理器、网络协议、网络服务器以及所有的线程/进程管理。
-然而在 Windows NT 4.0 之前，有一个领域一直采取纯微内核模式，也就是窗口管理器以及图形化子系统，它们用于实现 Win32 API 中的 GUI 部分。在 Windows NT 3.51 及之前的版本中，窗口管理器和 GDI 作为一个单独的用户态进程 Client-Server Subsystem(csrss.exe) 实现。
-1.2 Win32 子系统 在 Windows NT 的最初设计阶段，Win32 被设计为等同于 OS/2、POSIX 以及其他计划中的操作系统环境。每个这样的子系统都作为一个独立的环境运行。但是这种设计会导致存在大量重复的系统功能，影响系统规模以及性能。为了避免重复，以及响应市场趋势，最终发布的 Windows NT 3.1 中，Win32 子系统成为一个特殊的特权“程序”，其他所有的子系统以及整个操作系统都依赖该程序。
-在 Windows NT 4.0 之前，Win32 子系统包含 5 个模块，存在于不同 DLL 文件中：
-窗口管理器：处理输入以及屏幕 I/O； 图形设备接口(GDI)：图形输出设备的绘画库； 图形设备驱动(GDD)：硬件相关的图形驱动； 控制台：提供文字窗口支持； 操作系统功能：支持子系统中的所有组件。 将图形功能放在单独的 Win32 服务器进程中会造成很大的内存开销以及大量的线程/进程上下文转换操作，极为影响系统性能。而 Windows NT 是一个基于窗口的操作系统，会有大量的图形和窗口操作，因此自 Windows NT 4." />
+<meta property="og:description" content="csrss基础知识" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://www.zoemurmure.top/posts/csrss_base/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2023-01-10T17:07:41+08:00" />
 <meta property="article:modified_time" content="2023-01-10T17:07:41+08:00" />
 
 		<meta itemprop="name" content="CSRSS 基础知识">
-<meta itemprop="description" content="0. 前言 这是一篇不完整的 csrss 介绍，因为前段时间在看 csrss 相关的漏送，所以对相关的知识做了一下整理，因此你无法只通过这篇文章完全了解 csrss，但是如果这篇文章能够解答你在学习 csrss 时的一些疑惑，那么它的目的就达成了。
-1. 历史背景 1.1 微内核(microkernel)的概念 微内核指一个现代化、模块化操作系统中最核心的部分，微内核操作系统有两个原则：
-模块化、封装性和数据隐藏。即操作系统中有且仅有一部分对一个特定功能具有系统范围内的责任，操作系统中的其他部分，包括应用程序只能通过定义好的接口对使用该功能； 操作系统中的大部分功能在用户/应用程序模式下执行，只有微内核本身及硬件相关的小部分代码在内核态下执行。 遵循以上两个原则的操作系统叫做纯微内核系统，仅遵循第一个原则但不遵循第二个原则的操作系统叫做修改后的微内核(modified microkernel)或者宏内核(macrokernel)操作系统。商业性质的操作系统一般不会基于纯微内核进行设计，因为这样的架构计算成本太大。
-Windows NT 就是修改后的微内核系统，具有非常好的模块化和封装性，另一方面，从最初版本开始，Windows NT 就在内核态实现了高性能操作系统子系统，这些子系统可以在内核模式下与硬件交互以及相互交互，而不会影响处理器模式以及进程/线程转换的性能。作为内核态子系统实现的有内存管理器、集成缓存管理器、文件系统、对象/安全管理器、网络协议、网络服务器以及所有的线程/进程管理。
-然而在 Windows NT 4.0 之前，有一个领域一直采取纯微内核模式，也就是窗口管理器以及图形化子系统，它们用于实现 Win32 API 中的 GUI 部分。在 Windows NT 3.51 及之前的版本中，窗口管理器和 GDI 作为一个单独的用户态进程 Client-Server Subsystem(csrss.exe) 实现。
-1.2 Win32 子系统 在 Windows NT 的最初设计阶段，Win32 被设计为等同于 OS/2、POSIX 以及其他计划中的操作系统环境。每个这样的子系统都作为一个独立的环境运行。但是这种设计会导致存在大量重复的系统功能，影响系统规模以及性能。为了避免重复，以及响应市场趋势，最终发布的 Windows NT 3.1 中，Win32 子系统成为一个特殊的特权“程序”，其他所有的子系统以及整个操作系统都依赖该程序。
-在 Windows NT 4.0 之前，Win32 子系统包含 5 个模块，存在于不同 DLL 文件中：
-窗口管理器：处理输入以及屏幕 I/O； 图形设备接口(GDI)：图形输出设备的绘画库； 图形设备驱动(GDD)：硬件相关的图形驱动； 控制台：提供文字窗口支持； 操作系统功能：支持子系统中的所有组件。 将图形功能放在单独的 Win32 服务器进程中会造成很大的内存开销以及大量的线程/进程上下文转换操作，极为影响系统性能。而 Windows NT 是一个基于窗口的操作系统，会有大量的图形和窗口操作，因此自 Windows NT 4."><meta itemprop="datePublished" content="2023-01-10T17:07:41+08:00" />
+<meta itemprop="description" content="csrss基础知识"><meta itemprop="datePublished" content="2023-01-10T17:07:41+08:00" />
 <meta itemprop="dateModified" content="2023-01-10T17:07:41+08:00" />
 <meta itemprop="wordCount" content="1227">
 <meta itemprop="keywords" content="os," />
@@ -66,7 +52,7 @@ if (!doNotTrack) {
 					<img class="logo__img" src="/img/blog_img.png">
 				</div><div class="logo__item logo__text">
 					<div class="logo__title">Logic Security 逻辑门</div>
-					
+					<div class="logo__tagline">欢迎关注同名微信公众号(*^_^*)</div>
 				</div>
 		</a>
 	</div>
