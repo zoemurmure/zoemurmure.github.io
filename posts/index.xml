@@ -8,12 +8,12 @@
     <language>zh</language>
     <lastBuildDate>Tue, 17 Jan 2023 19:06:30 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析（一）</title>
+      <title>[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析</title>
       <link>https://www.zoemurmure.top/posts/cve_2023_21752_1/</link>
       <pubDate>Tue, 17 Jan 2023 19:06:30 +0800</pubDate>
       
       <guid>https://www.zoemurmure.top/posts/cve_2023_21752_1/</guid>
-      <description>0. 前言 CVE-2023-21752 是 2023 年开年微软第一个有 exploit 的漏洞，原本以为有利用代码会很好分析，结果时间竟然都花在了漏洞点定位上，由此可见我之前在漏洞分析流程上偷了多少懒，以此记录并警示。
+      <description>0. 前言 CVE-2023-21752 是 2023 年开年微软第一个有 exploit 的漏洞，原本以为有利用代码会很好分析，但是结果花费了很长时间，难点主要了两个：漏洞点定位和漏洞利用代码分析，因此在本文中花费了更多的篇幅介绍了这两部分内容，欢迎指正。
 1. 漏洞简介 根据官方信息，该漏洞是 Windows Backup Service 中的权限提升漏洞，经过身份认证的攻击者可利用此漏洞提升至 SYSTEM 权限。成功利用此漏洞需要攻击者赢得竞争条件。
 EXP 代码位于 Github，提供了两个版本，版本 1 可以实现任意文件删除，可稳定复现；版本 2 尝试利用任意删除实现本地提权，但是复现不稳定。
 2. 漏洞点定位的曲折之路 这部分内容是一些失败的过程记录，以及我自己的碎碎念，防止自己之后犯同样的错误，只对漏洞分析感兴趣的可以略过 2.1 和 2.3 小节。

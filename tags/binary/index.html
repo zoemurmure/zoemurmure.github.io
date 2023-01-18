@@ -88,7 +88,7 @@ if (!doNotTrack) {
 	<header class="list__header">
 		<h2 class="list__title post__title">
 			<a href="/posts/cve_2023_21752_1/" rel="bookmark">
-			[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析（一）
+			[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析
 			</a>
 		</h2>
 		<div class="list__meta meta"><div class="meta__item-author meta__item">
@@ -100,10 +100,9 @@ if (!doNotTrack) {
 </div></div>
 	</header>
 	<div class="content list__excerpt post__content clearfix">
-		0. 前言 CVE-2023-21752 是 2023 年开年微软第一个有 exploit 的漏洞，原本以为有利用代码会很好分析，结果时间竟然都花在了漏洞点定位上，由此可见我之前在漏洞分析流程上偷了多少懒，以此记录并警示。
+		0. 前言 CVE-2023-21752 是 2023 年开年微软第一个有 exploit 的漏洞，原本以为有利用代码会很好分析，但是结果花费了很长时间，难点主要了两个：漏洞点定位和漏洞利用代码分析，因此在本文中花费了更多的篇幅介绍了这两部分内容，欢迎指正。
 1. 漏洞简介 根据官方信息，该漏洞是 Windows Backup Service 中的权限提升漏洞，经过身份认证的攻击者可利用此漏洞提升至 SYSTEM 权限。成功利用此漏洞需要攻击者赢得竞争条件。
-EXP 代码位于 Github，提供了两个版本，版本 1 可以实现任意文件删除，可稳定复现；版本 2 尝试利用任意删除实现本地提权，但是复现不稳定。
-2. 漏洞点定位的曲折
+EXP 代码位于 Github，提供了两个版本，版本 1 可以实现任意文件删除，可稳定复现；版本 2 尝试利用任意删除实现本地提权，但是
 	</div>
 	<div class="list__footer clearfix">
 		<a class="list__footer-readmore btn" href="/posts/cve_2023_21752_1/">Read more…</a>
@@ -174,7 +173,7 @@ __int64 __fastcall TriggerBufferOverflowStack(void *Src, unsigned __int64 Size) 
 	<h4 class="widget__title">Recent Posts</h4>
 	<div class="widget__content">
 		<ul class="widget__list">
-			<li class="widget__item"><a class="widget__link" href="/posts/cve_2023_21752_1/">[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析（一）</a></li>
+			<li class="widget__item"><a class="widget__link" href="/posts/cve_2023_21752_1/">[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析</a></li>
 			<li class="widget__item"><a class="widget__link" href="/posts/csrss_base/">CSRSS 基础知识</a></li>
 			<li class="widget__item"><a class="widget__link" href="/posts/x64_paging/">X64 分页机制</a></li>
 			<li class="widget__item"><a class="widget__link" href="/posts/hevd_stackoberflowgs/">[HEVD exploit 系列] StackOverflowGS</a></li>

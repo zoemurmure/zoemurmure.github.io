@@ -4,20 +4,20 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析（一） - Logic Security 逻辑门</title>
+	<title>[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析 - Logic Security 逻辑门</title>
 	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
 	<meta name="description" content="cve-2023-21752 Windows Backup Service 本地提权漏洞分析">
-		<meta property="og:title" content="[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析（一）" />
+		<meta property="og:title" content="[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析" />
 <meta property="og:description" content="cve-2023-21752 Windows Backup Service 本地提权漏洞分析" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://www.zoemurmure.top/posts/cve_2023_21752_1/" /><meta property="article:section" content="posts" />
 <meta property="article:published_time" content="2023-01-17T19:06:30+08:00" />
 <meta property="article:modified_time" content="2023-01-17T19:06:30+08:00" />
 
-		<meta itemprop="name" content="[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析（一）">
+		<meta itemprop="name" content="[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析">
 <meta itemprop="description" content="cve-2023-21752 Windows Backup Service 本地提权漏洞分析"><meta itemprop="datePublished" content="2023-01-17T19:06:30+08:00" />
 <meta itemprop="dateModified" content="2023-01-17T19:06:30+08:00" />
-<meta itemprop="wordCount" content="522">
+<meta itemprop="wordCount" content="830">
 <meta itemprop="keywords" content="cve,binary," />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link rel="dns-prefetch" href="//fonts.googleapis.com">
@@ -87,7 +87,7 @@ if (!doNotTrack) {
 <main class="main" role="main">
 	<article class="post">
 		<header class="post__header">
-			<h1 class="post__title">[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析（一）</h1>
+			<h1 class="post__title">[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析</h1>
 			<div class="post__meta meta"><div class="meta__item-author meta__item">
 	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
 </div>
@@ -117,15 +117,20 @@ if (!doNotTrack) {
         <li><a href="#32-漏洞原理分析">3.2 漏洞原理分析</a></li>
       </ul>
     </li>
-    <li><a href="#4-文件删除漏洞利用代码流程总结">4. 文件删除漏洞利用代码流程总结</a></li>
-    <li><a href="#5-小节">5. 小节</a></li>
+    <li><a href="#4-漏洞利用">4. 漏洞利用</a>
+      <ul>
+        <li><a href="#41-文件删除漏洞利用代码流程总结">4.1 文件删除漏洞利用代码流程总结</a></li>
+        <li><a href="#42-提权漏洞利用">4.2 提权漏洞利用</a></li>
+        <li><a href="#32-符号链接的问题">3.2 符号链接的问题</a></li>
+      </ul>
+    </li>
     <li><a href="#6-参考资料">6. 参考资料</a></li>
   </ul>
 </nav>
 	</div>
 </div><div class="content post__content clearfix">
 			<h2 id="0-前言">0. 前言</h2>
-<p>CVE-2023-21752 是 2023 年开年微软第一个有 exploit 的漏洞，原本以为有利用代码会很好分析，结果时间竟然都花在了漏洞点定位上，由此可见我之前在漏洞分析流程上偷了多少懒，以此记录并警示。</p>
+<p>CVE-2023-21752 是 2023 年开年微软第一个有 exploit 的漏洞，原本以为有利用代码会很好分析，但是结果花费了很长时间，难点主要了两个：漏洞点定位和漏洞利用代码分析，因此在本文中花费了更多的篇幅介绍了这两部分内容，欢迎指正。</p>
 <h2 id="1-漏洞简介">1. 漏洞简介</h2>
 <p>根据官方信息，该漏洞是 Windows Backup Service 中的权限提升漏洞，经过身份认证的攻击者可利用此漏洞提升至 SYSTEM 权限。成功利用此漏洞需要攻击者赢得竞争条件。</p>
 <p>EXP 代码位于 <a href="https://github.com/Wh04m1001/CVE-2023-21752">Github</a>，提供了两个版本，版本 1 可以实现任意文件删除，可稳定复现；版本 2 尝试利用任意删除实现本地提权，但是复现不稳定。</p>
@@ -266,14 +271,15 @@ _
 <p>简单来说，修复后的代码将临时文件的创建和删除操作整合成为了一个元操作。</p>
 <h3 id="32-漏洞原理分析">3.2 漏洞原理分析</h3>
 <p>上面补丁对比的结果可以确定这是一个条件竞争漏洞，由于临时文件的创建操作和删除操作接次发生，并且在两个操作之间没有对文件进行限制，这就导致攻击者可以创建另一线程，在临时文件创建之后，删除之前，获取文件句柄并创建机会锁阻止其他线程操作，同时将文件删除，并设置原文件路径指向其他文件，当机会锁释放后，指向的其他文件就会被删除。</p>
-<h2 id="4-文件删除漏洞利用代码流程总结">4. 文件删除漏洞利用代码流程总结</h2>
+<h2 id="4-漏洞利用">4. 漏洞利用</h2>
+<h3 id="41-文件删除漏洞利用代码流程总结">4.1 文件删除漏洞利用代码流程总结</h3>
 <ol>
 <li>在临时文件夹下，使用 <code>FULL_SHARING</code> 模式创建目录 dir ，作为上述临时文件的保存位置;</li>
 <li>创建线程 FindFile，监控 dir 目录下的文件创建操作：
 <ol>
 <li>获取创建文件句柄并创建机会锁；</li>
 <li>将创建的文件移动到其他目录下；</li>
-<li>创建 reparse point 及软链接，将原文件路径指向要删除的目标文件；</li>
+<li>创建符号链接，将原文件路径指向要删除的目标文件；</li>
 <li>释放机会锁；</li>
 </ol>
 </li>
@@ -282,19 +288,72 @@ _
 </ol>
 <p>如下图所示：</p>
 <p><img src="/img/2023-01-17-18-41-08.png" alt=""></p>
-<h2 id="5-小节">5. 小节</h2>
-<p>到目前为止 CVE-2023-21752 这个漏洞本身其实已经分析完成了，但是漏洞利用部分还有很多内容没有学习：</p>
-<ol>
-<li>实现任意文件删除时，为何需要通过 Reparse point 的方式创建从临时文件到目标文件的链接；</li>
-<li>如何由任意文件删除实现本地提权；</li>
-<li>漏洞发现者提供的 exp 为何无法稳定复现，如何修复。</li>
-</ol>
-<p>过两天就放假了，暂时先告一段落，之后我会对这一部分内容进行学习。</p>
+<h3 id="42-提权漏洞利用">4.2 提权漏洞利用</h3>
+<h4 id="421-原理分析">4.2.1 原理分析</h4>
+<p>这部分内容基本上看 <a href="https://www.zerodayinitiative.com/blog/2022/3/16/abusing-arbitrary-file-deletes-to-escalate-privilege-and-other-great-tricks">ZDI 的文章</a>就可以，这里做一下介绍。</p>
+<p>简单来说，从 <strong>任意文件删除</strong> 到本地提权，需要与 MSI installer 文件运行过程进行条件竞争。</p>
+<p>Windows Installer 服务负责应用程序的安装，而 msi 文件定义了安装过程中会发生的变化，例如创建了哪些文件夹、复制了哪些文件、修改了哪些注册表等等。因为程序安装过程中会对系统进行修改，为了避免安装出错导致系统无法恢复，msi 会在运行时创建文件夹 <code>C:/Config.msi</code>，将安装过程中做的所有更改记录到 .rbs 后缀的文件中，同时将被替换的系统文件存储为 .rbf 格式放入该文件夹。所以如果可以替换其中的 rbf 文件，就能将系统文件替换为任意恶意文件。正是因为有文件替换的风险，所以 <code>C:/Config.msi</code> 及其中的文件默认具有强 DACL。</p>
+<p>但是如果攻击者能做到 <strong>任意目录删除</strong>，就可以将 <code>C:/Config.msi</code> 删除，重新创建一个弱 DACL 的 <code>C:/Config.msi</code> 目录，并在 msi 程序创建完 rbs 和 rbf 文件之后，对其进行替换，使用恶意 rbf 文件实现提权。</p>
+<p>具体来看，msi 在运行时经历了 <strong>创建-&gt;删除-&gt;再创建</strong> 的过程，之后才会开始创建 rbs 文件，因此 <strong>任意目录删除</strong> 需要在 <strong>再创建</strong> 之后，rbs 文件创建之前删除 <code>C:/Config.msi</code> 目录，并监控 rbs 文件的产生，对文件进行替换，条件竞争就发生在这里。</p>
+<p>上面提到的漏洞是 <strong>任意目录删除</strong>，如果发现的是 <strong>任意文件删除</strong>，可以删除 <code>C:/Config.msi::$INDEX_ALLOCATION</code> 数据流，同样可以实现目录的删除。</p>
+<p>利用任意文件删除漏洞实现提权的流程如下图所示：</p>
+<p><img src="/img/2023-01-18-08-23-32.png" alt=""></p>
+<h4 id="422-失败原因分析">4.2.2 失败原因分析</h4>
+<p>上面介绍的流程把 <strong>Config.msi 的删除</strong> 当作一个元操作，但在 CVE-2023-21752 这个漏洞中，文件删除同样需要条件竞争才能实现，具有相对繁琐的步骤。也就是说想要利用这个漏洞实现本地提权，需要同时实现赢得两个条件竞争，这也是我一开始复现总是失败的原因。</p>
+<p>为了方便了解利用代码的执行流程，我对代码中的注释进行了添加和修改，得到了如下的执行结果：</p>
+<pre tabindex="0"><code>PS C:\Users\exp\Desktop&gt; C:\Users\exp\Desktop\SDRsvcEop.exe
+[wmain] Config.msi directory created!
+[wmain] Directory: C:\users\exp\appdata\local\temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8
+[wmain] Got handle of uuid directory
+[wmain] Finish create oplock for config.msi
+
+[Trigger] Path: \\127.0.0.1\c$\Users\exp\AppData\Local\Temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8
+[FindFile] Found added file C:\users\exp\appdata\local\temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8\SDT73B.tmp
+[FindFile] Got handle of C:\users\exp\appdata\local\temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8\SDT73B.tmp
+[cb] Oplock!
+[Move] Finish moving to \??\C:\windows\temp\c5b82788-8133-4971-b351-38f58233ced1
+[CreateJunction] Junction \\?\C:\Users\exp\AppData\Local\Temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8 -&gt; \RPC Control created!
+[DosDeviceSymLink] Symlink Global\GLOBALROOT\RPC Control\SDT73B.tmp -&gt; \??\C:\Config.msi::$INDEX_ALLOCATION created!
+[FindFile] End
+
+[Move] Finish moving to \??\C:\windows\temp\0f1161f2-a8c5-4798-a71d-f32ebba87125
+[install] MSI file: C:\windows\temp\MSI72F.tmp
+[install] Start ACTION=INSTALL
+[cb1] Detect first create
+[cb1] Detect first delete
+[install] Start REMOVE=ALL
+[install] Start delete msi file
+
+[Fail] Race condtion failed!
+[DeleteJunction] Junction \\?\C:\Users\exp\AppData\Local\Temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8 deleted!
+[DelDosDeviceSymLink] Symlink Global\GLOBALROOT\RPC Control\SDT73B.tmp -&gt; \??\C:\Config.msi::$INDEX_ALLOCATION deleted!
+</code></pre><p>我在不同流程的结果之间添加了回车，方便观察，可以看到在 <strong>删除文件</strong> 流程中，程序监控到了临时文件的生成，也创建了符号链接，但是由于符号链接将临时文件链接到了 <code>C:/Config.msi::$INDEX_ALLOCATION</code> 上，而 <code>C:/Config.msi</code> 的机会锁又掌握在 msi 线程上，因此删除操作停滞了。</p>
+<p>于此同时 msi 线程上只监测到了 <code>C:\\Config.msi</code> 的第一次创建和删除，并没有监测到第二次创建，因为这里使用了循环对创建行为进行检测，因此该线程也陷入了无限循环。</p>
+<p>与 msi 的条件竞争失败，导致两个线程发生死锁，漏洞利用失败。</p>
+<h4 id="423-问题解决">4.2.3 问题解决</h4>
+<p>首先，我将利用代码的整个流程画成了如下的流程图：</p>
+<p><img src="/img/2023-01-18-16-30-28.png" alt=""></p>
+<p>红框部分就是条件竞争失败的地点。</p>
+<p>我尝试增加虚拟机的 CPU 数量，对监控 Config.msi 创建的代码进行优化，但是都没有成功。同时我也单独使用 procmon 监控了 msi 文件的运行过程，确定 Config.msi 目录确实发生了二次创建。</p>
+<p>所以结论只有一个，Config.msi 目录的二次创建发生的太快了。但是既然 Config.msi 目录的二次创建是确实发生的，同时利用代码已经监测到了第一次删除的行为，那么如果这个时候就释放机会锁 2，又会如何呢？</p>
+<p>如果不对 Config.msi 目录的二次创建进行监控，直接释放机会锁 2，因为 Config.msi 目录的二次创建时间间隔非常短，等待良久的 sdrsvc 就有机会成功删除 Config.msi。此时漏洞利用流程可以继续进行下去，并成功实现漏洞利用！</p>
+<p><img src="/img/2023-01-18-16-57-08.png" alt=""></p>
+<h3 id="32-符号链接的问题">3.2 符号链接的问题</h3>
+<p>之前我对利用代码中如何链接向待删除文件存在疑问，实际上这种利用手法<a href="https://vimeo.com/showcase/3416096/video/133002251">来自 James Forshaw</a>，参考链接 5 和 6 对其进行了介绍。</p>
+<p>重分析点/Junction 是一种 NTFS 文件系统中文件夹的属性，NTFS 驱动在打开文件夹的时候会对它进行读取。可以使用它对目录之间进行链接，假设要建立目录 A 向目录 B 的重分析点，只要普通用户对目录 A 具有可写权限就能够进行，而对目录 B 的权限没有任何要求。</p>
+<p>在 Windows 系统中，我们常提到的 C 盘目录并不是一个真的文件夹，它实际上是一个指向设备物理地址的符号链接对象，你可以使用 WinObj 在 <code>\GLOBAL??</code> 中看到 <code>C:</code> 项是一个 <code>SymbolicLink</code>。当我们访问 C 盘中的某个文件时，系统会对访问路径进行转换，转换成真正的设备物理地址。普通用户也可以在对象管理器中添加或删除符号链接，但是该行为只能在有限的目录下进行，例如 <code>\RPC Control</code>.</p>
+<p>在上面利用代码执行结果中，有下面两行输出：</p>
+<pre tabindex="0"><code>[CreateJunction] Junction \\?\C:\Users\exp\AppData\Local\Temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8 -&gt; \RPC Control created!
+[DosDeviceSymLink] Symlink Global\GLOBALROOT\RPC Control\SDT73B.tmp -&gt; \??\C:\Config.msi::$INDEX_ALLOCATION created!
+</code></pre><p>首先创建了攻击者可控的目录 <code>3bbbd2cf-7baf-42b7-98ea-242f703b08f8</code> 指向 <code>\RPC Control</code> 的重分析点，这样访问 <code>\RPC Control</code> 就相当于访问这个可控目录；之后在 <code>\RPC Control</code> 下面创建了一个由 <code>SDT73B.tmp</code> 指向待删除文件的符号链接，这一步就相当于将可控目录下的 <code>SDT73B.tmp</code> 指向了待删除文件，删除 <code>SDT73B.tmp</code> 就相当于删除了目标文件。</p>
 <h2 id="6-参考资料">6. 参考资料</h2>
 <ol>
 <li><a href="https://mp.weixin.qq.com/s/dhKtb8EeBwJnBEjepHXPpg">https://mp.weixin.qq.com/s/dhKtb8EeBwJnBEjepHXPpg</a></li>
 <li><a href="https://googleprojectzero.blogspot.com/2018/08/windows-exploitation-tricks-exploiting.html">Windows Exploitation Tricks: Exploiting Arbitrary Object Directory Creation for Local Elevation of Privilege</a></li>
 <li><a href="https://github.com/Wh04m1001/CVE-2023-21752">CVE-2023-21752 exp</a></li>
+<li><a href="https://www.zerodayinitiative.com/blog/2022/3/16/abusing-arbitrary-file-deletes-to-escalate-privilege-and-other-great-tricks">ABUSING ARBITRARY FILE DELETES TO ESCALATE PRIVILEGE AND OTHER GREAT TRICKS</a></li>
+<li><a href="https://www.cyberark.com/resources/threat-research-blog/follow-the-link-exploiting-symbolic-links-with-ease">Follow the Link: Exploiting Symbolic Links with Ease</a></li>
+<li><a href="https://nixhacker.com/understanding-and-exploiting-symbolic-link-in-windows/">Understanding and Exploiting Symbolic links in Windows - Symlink Attack EOP</a></li>
 </ol>
 
 		</div>
