@@ -6,7 +6,22 @@
     <description>Recent content in cve on Logic Security 逻辑门</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>zh</language>
-    <lastBuildDate>Tue, 17 Jan 2023 19:06:30 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/cve/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Tue, 07 Feb 2023 14:25:08 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/cve/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Win32k 类型混淆漏洞分析指南</title>
+      <link>https://www.zoemurmure.top/posts/win32k_1732_21881/</link>
+      <pubDate>Tue, 07 Feb 2023 14:25:08 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/win32k_1732_21881/</guid>
+      <description>0. 前言 众所周知，win32k 在近几年为 Windows 提权漏洞贡献了很多力量，我也一直想搞清楚这类漏洞的原理，为此看了很多相关论文。但是作为一个内核漏洞研究的菜鸟，大佬们写的 win32k 漏洞的 write-up 在我看来还是和天书一样。
+当然，我知道什么是 UAF，什么是类型混淆，我也知道 win32k 的很多漏洞都是由于回调函数导致的，可是当所有的这些概念组合在一起，再加上一些专业名词还有很长的函数名称，事情就完全不同了。
+为此，我想通过对 CVE-2021-1732 和 CVE-2022-21881 这两个漏洞的分析，复盘自己在面对此类漏洞时遇到的困惑，并尝试进行解决，这样以后再遇到 win32k 的漏洞时，可以有的放矢，迅速解决问题。
+1. 基础知识 1.1 基础建设 在没有接触 win32k 之前，我对于系统调用的理解，无非就是应用程序调用 DLL 文件中某个函数，从而实现某个系统功能，如果需要内核的参与，DLL 文件会自己处理关于内核的问题。而每个 DLL 文件就是一些具有关联性的功能的合集。
+当我尝试了解 win32k 的时候，被告诉的第一个事实就是，win32k 主要处理 Windows GUI 相关的问题，作为一个日常使用 GUI 系统的普通用户，我会有一个下意识的错误观念 —— GUI 即一切，所以当时我的第一反应就是：怎么可能所有的功能都放到了一个文件里？
+但是如果仔细思考，或者去看一下 C:/Windows/System32 目录下的 DLL 文件，会发现 Windows 的功能太多了，通信、加密、邮件、浏览器……我之所以会认为 GUI 即一切，是因为很多功能最终都会通过 GUI 反应到使用者的视觉中，因此可以这样理解，win32k 是其他功能的基石，其他功能或多或少的需要 win32k 中的功能。实际上，除了 win32k 之外，还有 csrss，两者共同构成了 win32 子系统，关于这一点可以看我之前的文章CSRSS 基础知识的历史背景部分。
+1.2 用户态 GUI 知识点 建议所有对 win32k 有疑惑的朋友都先看一下 Programming Windows 第五版的第三章 Windows and Messages，我在读大学的时候曾经从编程的角度看过这本书的一部分内容，但是现在回过头来再读，还是发现了很多自己遗漏的细节。</description>
+    </item>
+    
     <item>
       <title>[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析</title>
       <link>https://www.zoemurmure.top/posts/cve_2023_21752_1/</link>

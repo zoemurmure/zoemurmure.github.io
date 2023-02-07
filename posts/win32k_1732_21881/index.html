@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>Win32k 类型混淆漏洞分析指南 - Logic Security 逻辑门</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="win32k 类型混淆漏洞分析指南">
+		<meta property="og:title" content="Win32k 类型混淆漏洞分析指南" />
+<meta property="og:description" content="win32k 类型混淆漏洞分析指南" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://www.zoemurmure.top/posts/win32k_1732_21881/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2023-02-07T14:25:08+08:00" />
+<meta property="article:modified_time" content="2023-02-07T14:25:08+08:00" />
+
+		<meta itemprop="name" content="Win32k 类型混淆漏洞分析指南">
+<meta itemprop="description" content="win32k 类型混淆漏洞分析指南"><meta itemprop="datePublished" content="2023-02-07T14:25:08+08:00" />
+<meta itemprop="dateModified" content="2023-02-07T14:25:08+08:00" />
+<meta itemprop="wordCount" content="1977">
+<meta itemprop="keywords" content="cve,binary," />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	<link rel="stylesheet" href="/css/custom.css">
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security 逻辑门" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security 逻辑门</div>
+					<div class="logo__tagline">欢迎关注同名微信公众号：逻辑门(*^_^*)</div>
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/history/">
+				
+				<span class="menu__text">历史文章</span>
+				
+			</a>
+		</li>
+	</ul>
+</nav>
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">Win32k 类型混淆漏洞分析指南</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-02-07T14:25:08&#43;08:00">2023-02-07</time></div><div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" rel="category">漏洞分析</a>
+	</span>
+</div></div>
+		</header>
+		
+<div class="post__toc toc">
+	<div class="toc__title">Page content</div>
+	<div class="toc__menu">
+		<nav id="TableOfContents">
+  <ul>
+    <li><a href="#0-前言">0. 前言</a></li>
+    <li><a href="#1-基础知识">1. 基础知识</a>
+      <ul>
+        <li><a href="#11-基础建设">1.1 基础建设</a></li>
+        <li><a href="#12-用户态-gui-知识点">1.2 用户态 GUI 知识点</a></li>
+        <li><a href="#13-内核态-gui-知识点">1.3 内核态 GUI 知识点</a></li>
+        <li><a href="#14-内核态和用户态的转换">1.4 内核态和用户态的转换</a></li>
+      </ul>
+    </li>
+    <li><a href="#2-cve-2021-1732-漏洞分析">2. CVE-2021-1732 漏洞分析</a>
+      <ul>
+        <li><a href="#21-补丁分析">2.1 补丁分析</a></li>
+        <li><a href="#22-补丁存在的问题">2.2 补丁存在的问题</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-漏洞利用">3. 漏洞利用</a>
+      <ul>
+        <li><a href="#31-如何造成类型混淆">3.1 如何造成类型混淆</a></li>
+        <li><a href="#32-类型混淆到本地提权">3.2 类型混淆到本地提权</a></li>
+        <li><a href="#33-小节">3.3 小节</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-cve-2022-21882-漏洞分析">4. CVE-2022-21882 漏洞分析</a>
+      <ul>
+        <li><a href="#41-漏洞原理">4.1 漏洞原理</a></li>
+        <li><a href="#42-补丁分析">4.2 补丁分析</a></li>
+        <li><a href="#43-漏洞利用">4.3 漏洞利用</a></li>
+      </ul>
+    </li>
+    <li><a href="#5-总结">5. 总结</a></li>
+    <li><a href="#6-参考资料">6. 参考资料</a></li>
+  </ul>
+</nav>
+	</div>
+</div><div class="content post__content clearfix">
+			<h2 id="0-前言">0. 前言</h2>
+<p>众所周知，win32k 在近几年为 Windows 提权漏洞贡献了很多力量，我也一直想搞清楚这类漏洞的原理，为此看了很多相关论文。但是作为一个内核漏洞研究的菜鸟，大佬们写的 win32k 漏洞的 write-up 在我看来还是和天书一样。</p>
+<p>当然，我知道什么是 UAF，什么是类型混淆，我也知道 win32k 的很多漏洞都是由于回调函数导致的，可是当所有的这些概念组合在一起，再加上一些专业名词还有很长的函数名称，事情就完全不同了。</p>
+<p>为此，我想通过对 CVE-2021-1732 和 CVE-2022-21881 这两个漏洞的分析，复盘自己在面对此类漏洞时遇到的困惑，并尝试进行解决，这样以后再遇到 win32k 的漏洞时，可以有的放矢，迅速解决问题。</p>
+<h2 id="1-基础知识">1. 基础知识</h2>
+<h3 id="11-基础建设">1.1 基础建设</h3>
+<p>在没有接触 win32k 之前，我对于系统调用的理解，无非就是应用程序调用 DLL 文件中某个函数，从而实现某个系统功能，如果需要内核的参与，DLL 文件会自己处理关于内核的问题。而每个 DLL 文件就是一些具有关联性的功能的合集。</p>
+<p>当我尝试了解 win32k 的时候，被告诉的第一个事实就是，win32k 主要处理 Windows GUI 相关的问题，作为一个日常使用 GUI 系统的普通用户，我会有一个下意识的错误观念 —— GUI 即一切，所以当时我的第一反应就是：怎么可能所有的功能都放到了一个文件里？</p>
+<p>但是如果仔细思考，或者去看一下 <code>C:/Windows/System32</code> 目录下的 DLL 文件，会发现 Windows 的功能太多了，通信、加密、邮件、浏览器……我之所以会认为 GUI 即一切，是因为很多功能最终都会通过 GUI 反应到使用者的视觉中，因此可以这样理解，win32k 是其他功能的基石，其他功能或多或少的需要 win32k 中的功能。实际上，除了 win32k 之外，还有 csrss，两者共同构成了 win32 子系统，关于这一点可以看我之前的文章<a href="https://www.zoemurmure.top/posts/csrss_base/">CSRSS 基础知识</a>的<strong>历史背景</strong>部分。</p>
+<h3 id="12-用户态-gui-知识点">1.2 用户态 GUI 知识点</h3>
+<p>建议所有对 win32k 有疑惑的朋友都先看一下 Programming Windows 第五版的第三章 Windows and Messages，我在读大学的时候曾经从编程的角度看过这本书的一部分内容，但是现在回过头来再读，还是发现了很多自己遗漏的细节。</p>
+<p>比较重要的概念就是，Windows GUI 编程实际上是一种“面向对象编程”，窗口是一种对象。对面向对象编程有所了解的朋友都知道对象是根据类创建的，每个对象都有对应的数据和方法，在创建窗口的时候，就需要先注册一个窗口类，并指定窗口过程。</p>
+<p>截取一部分书中的代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">int</span> WINAPI <span style="color:#a6e22e">WinMain</span> (HINSTANCE hInstance, HINSTANCE hPrevInstance,
+</span></span><span style="display:flex;"><span>                    PSTR szCmdLine, <span style="color:#66d9ef">int</span> iCmdShow)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>     <span style="color:#66d9ef">static</span> TCHAR szAppName[] <span style="color:#f92672">=</span> TEXT (<span style="color:#e6db74">&#34;HelloWin&#34;</span>) ;
+</span></span><span style="display:flex;"><span>     HWND         hwnd ;
+</span></span><span style="display:flex;"><span>     MSG          msg ;
+</span></span><span style="display:flex;"><span>     WNDCLASS     wndclass ;
+</span></span><span style="display:flex;"><span>     wndclass.style         <span style="color:#f92672">=</span> CS_HREDRAW <span style="color:#f92672">|</span> CS_VREDRAW ;
+</span></span><span style="display:flex;"><span>     wndclass.lpfnWndProc   <span style="color:#f92672">=</span> WndProc ;
+</span></span><span style="display:flex;"><span>     wndclass.cbClsExtra    <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span> ;
+</span></span><span style="display:flex;"><span>     wndclass.cbWndExtra    <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span> ;
+</span></span><span style="display:flex;"><span>     wndclass.hInstance     <span style="color:#f92672">=</span> hInstance ;
+</span></span><span style="display:flex;"><span>     wndclass.hIcon         <span style="color:#f92672">=</span> LoadIcon (NULL, IDI_APPLICATION) ;
+</span></span><span style="display:flex;"><span>     wndclass.hCursor       <span style="color:#f92672">=</span> LoadCursor (NULL, IDC_ARROW) ;
+</span></span><span style="display:flex;"><span>     wndclass.hbrBackground <span style="color:#f92672">=</span> (HBRUSH) GetStockObject (WHITE_BRUSH) ;
+</span></span><span style="display:flex;"><span>     wndclass.lpszMenuName  <span style="color:#f92672">=</span> NULL ;
+</span></span><span style="display:flex;"><span>     wndclass.lpszClassName <span style="color:#f92672">=</span> szAppName ;
+</span></span><span style="display:flex;"><span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>RegisterClass (<span style="color:#f92672">&amp;</span>wndclass))
+</span></span><span style="display:flex;"><span>     {
+</span></span><span style="display:flex;"><span>          MessageBox (NULL, TEXT (<span style="color:#e6db74">&#34;This program requires Windows NT!&#34;</span>), 
+</span></span><span style="display:flex;"><span>                      szAppName, MB_ICONERROR) ;
+</span></span><span style="display:flex;"><span>          <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span> ;
+</span></span><span style="display:flex;"><span>     }
+</span></span><span style="display:flex;"><span>     hwnd <span style="color:#f92672">=</span> CreateWindow (szAppName,                  <span style="color:#75715e">// window class name
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          TEXT (<span style="color:#e6db74">&#34;The Hello Program&#34;</span>), <span style="color:#75715e">// window caption
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          WS_OVERLAPPEDWINDOW,        <span style="color:#75715e">// window style
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          CW_USEDEFAULT,              <span style="color:#75715e">// initial x position
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          CW_USEDEFAULT,              <span style="color:#75715e">// initial y position
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          CW_USEDEFAULT,              <span style="color:#75715e">// initial x size
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          CW_USEDEFAULT,              <span style="color:#75715e">// initial y size
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          NULL,                       <span style="color:#75715e">// parent window handle
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          NULL,                       <span style="color:#75715e">// window menu handle
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          hInstance,                  <span style="color:#75715e">// program instance handle
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          NULL) ;                     <span style="color:#75715e">// creation parameters
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>     ShowWindow (hwnd, iCmdShow) ;
+</span></span><span style="display:flex;"><span>     UpdateWindow (hwnd) ;
+</span></span><span style="display:flex;"><span>     <span style="color:#66d9ef">while</span> (GetMessage (<span style="color:#f92672">&amp;</span>msg, NULL, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>))
+</span></span><span style="display:flex;"><span>     {
+</span></span><span style="display:flex;"><span>          TranslateMessage (<span style="color:#f92672">&amp;</span>msg) ;
+</span></span><span style="display:flex;"><span>          DispatchMessage (<span style="color:#f92672">&amp;</span>msg) ;
+</span></span><span style="display:flex;"><span>     }
+</span></span><span style="display:flex;"><span>     <span style="color:#66d9ef">return</span> msg.wParam ;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>其中 <code>WNDCLASS</code> 是窗口类，它指定了窗口过程 <code>lpfnWndProc</code>，类名称 <code>lpszClassName</code>，以及窗口的其他一些属性。其中 <code>cbWndExtra</code> 字段需要注意，该字段告诉系统在内部为由此窗口类创建的窗口保留一些额外空间，如果这个字段不为 0，那么之后可以使用 <code>SetWindowLong</code> 和 <code>GetWindowLong</code> 函数对额外空间进行访问，这个字段会在下面提到。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>LONG <span style="color:#a6e22e">SetWindowLong</span>( 
+</span></span><span style="display:flex;"><span>  HWND hWnd, 
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">int</span> nIndex,       <span style="color:#75715e">// 要设置数值在额外空间中的偏移量，有效范围 [0,cbWndExtra-4]
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  LONG dwNewLong    <span style="color:#75715e">// 要设置的数值
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>); 
+</span></span></code></pre></div><p>之后使用 <code>RegisterClass</code> 注册窗口类，并在 <code>CreateWindow</code> 创建窗口时，把类名 <code>szAppName</code> 作为第一个参数，创建一个该类的窗口。</p>
+<h3 id="13-内核态-gui-知识点">1.3 内核态 GUI 知识点</h3>
+<p>这部分内容可以看一下 Kernel Attacks through User-Mode Callbacks 这篇论文背景知识介绍的部分。</p>
+<p>Windows 使用窗口管理器对 GUI 进行管理，窗口管理器同样把窗口、菜单这样的用户实体看作用户对象(user objects)，并会在每个用户会话中维护一个句柄表对这些对象进行追踪，当我们在用户态编程时提供了某个用户实体的句柄值时，窗口管理器就会根据句柄表把这个句柄值转换为内核空间中对应的对象。</p>
+<p>用户对象在内核中也使用不同的数据结构进行表示，在我们上面提到的“系统在内部为由此窗口类创建的窗口保留一些额外空间”，这个额外空间就保存在数据结构 <code>win32k!tagWND</code> 中，由于微软目前已经将该结构体从符号表中删除，而 Win10 和 Win7 相比这个结构体又发生了很大的变化，因此只能通过代码分析和动态调试结构体中的字段进行猜测。幸运的是，已经有大佬对该结构体进行了分析（经过自己的调试，我修改了一些细节）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>ptagWND  <span style="color:#75715e">//内核中调用 ValidateHwnd 传入用户态窗口句柄可返回此数据指针
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#ae81ff">0x00</span> hWnd
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">0x10</span> unknown
+</span></span><span style="display:flex;"><span>        <span style="color:#ae81ff">0x00</span> pTEB
+</span></span><span style="display:flex;"><span>            <span style="color:#ae81ff">0x220</span> pEPROCESS(of current process)
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">0x18</span> unknown
+</span></span><span style="display:flex;"><span>        <span style="color:#ae81ff">0x80</span> kernel desktop heap base   <span style="color:#75715e">//内核桌面堆基址
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#ae81ff">0x28</span> ptagWNDk                   <span style="color:#75715e">//需要重点关注这个结构体，结构体在下方：
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#ae81ff">0xA8</span> spMenu
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">tagWNDK</span> {
+</span></span><span style="display:flex;"><span>    ULONG64 hWnd;                   <span style="color:#75715e">//+0x00
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONG64 OffsetToDesktopHeap;    <span style="color:#75715e">//+0x08 tagWNDK相对桌面堆基址偏移
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONG64 state;                  <span style="color:#75715e">//+0x10
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD dwExStyle;                <span style="color:#75715e">//+0x18
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD dwStyle;                  <span style="color:#75715e">//+0x1C
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    BYTE gap[<span style="color:#ae81ff">0x38</span>];
+</span></span><span style="display:flex;"><span>    RECT rect;                      <span style="color:#75715e">//+0x58
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    BYTE gap1[<span style="color:#ae81ff">0x68</span>];
+</span></span><span style="display:flex;"><span>    ULONG64 cbWndExtra;             <span style="color:#75715e">//+0xC8 额外空间的大小
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    BYTE gap2[<span style="color:#ae81ff">0x18</span>];
+</span></span><span style="display:flex;"><span>    DWORD dwExtraFlag;              <span style="color:#75715e">//+0xE8 决定 SetWindowLong 寻址模式
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    BYTE gap3[<span style="color:#ae81ff">0x10</span>];                <span style="color:#75715e">//+0xEC
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD cbWndServerExtra;         <span style="color:#75715e">//+0xFC
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    BYTE gap5[<span style="color:#ae81ff">0x28</span>];
+</span></span><span style="display:flex;"><span>    ULONG64 pExtraBytes;            <span style="color:#75715e">//+0x128 模式1：内核偏移量 模式2：用户态指针
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>}
+</span></span></code></pre></div><p>其中的 <code>dwExtraFlag</code> 和 <code>pExtraBytes</code> 字段会影响 <code>SetWindowLong</code> 的执行流程，因为和下面要分析的漏洞有关，这里做一下详细说明。</p>
+<p>首先有一点要明确，当应用程序在代码中调用 <code>SetWindowLong</code> 尝试设置额外空间中的数据时，对应到内核中被调用的是 <code>win32kfull!NtUserSetWindowLong</code>，这个函数会进一步调用 <code>xxxSetWindowLong</code>，关于这两个字段的含义可以在 <code>xxxSetWindowLong</code> 函数中体现出来：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">xxxSetWindowLong</span>(<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">tagWND</span> <span style="color:#f92672">*</span>tagWND, <span style="color:#66d9ef">int</span> nIndex, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> dwNewLong, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> a4, <span style="color:#66d9ef">int</span> a5) {
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( nIndex_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">4</span>i64 <span style="color:#f92672">&lt;=</span> cbWndServerExtra_1 )
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      v31 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x23</span>);
+</span></span><span style="display:flex;"><span>      dwOldLong <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(nIndex_1 <span style="color:#f92672">+</span> v31);
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>(nIndex_2 <span style="color:#f92672">+</span> v31) <span style="color:#f92672">=</span> dwNewLong_1;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      v18 <span style="color:#f92672">=</span> nIndex_1 <span style="color:#f92672">-</span> cbWndServerExtra_1;
+</span></span><span style="display:flex;"><span>      pExtraBytes <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(tagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(tagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xE8</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x800</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )     <span style="color:#75715e">// dwExtraFlag 与 0x800 不为 0 时
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        dst <span style="color:#f92672">=</span> (pExtraBytes <span style="color:#f92672">+</span> v18 <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">3</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x80</span>i64));<span style="color:#75715e">// pExtraBytes 中保存的是额外空间相对于桌面堆基址的偏移量
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      <span style="color:#66d9ef">else</span>                                        <span style="color:#75715e">// dwExtraFlag 与 0x800 为 0 时
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        dst <span style="color:#f92672">=</span> (v18 <span style="color:#f92672">+</span> pExtraBytes);                <span style="color:#75715e">// pExtraBytes 中保存的是额外空间的地址
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      dwOldLong <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>dst;
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>dst <span style="color:#f92672">=</span> dwNewLong_1;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>可以看到 <code>dwExtraFlag</code> 字段控制了 <code>pExtraBytes</code> 字段的含义，且一种情况下保存的是地址偏移，一种情况下保存的是地址，如果可以以某种手段造成两个字段不匹配，就会导致类型混淆。</p>
+<h3 id="14-内核态和用户态的转换">1.4 内核态和用户态的转换</h3>
+<p>有些时候 win32k 需要在用户态执行一些功能，比如调用应用程序定义的钩子、提供事件通知或者和用户态进行数据传输，这个时候就会通过 <code>KeUserModeCallback</code> 从内核态转向用户态：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>NTSTATUS <span style="color:#a6e22e">KeUserModeCallback</span> (
+</span></span><span style="display:flex;"><span>    IN ULONG ApiNumber,
+</span></span><span style="display:flex;"><span>    IN PVOID InputBuffer,
+</span></span><span style="display:flex;"><span>    IN ULONG InputLength,
+</span></span><span style="display:flex;"><span>    OUT PVOID <span style="color:#f92672">*</span>OutputBuffer,
+</span></span><span style="display:flex;"><span>    IN PULONG OutputLength );
+</span></span></code></pre></div><p><code>ApiNumber</code> 用于指定想要调取的回调函数在函数指针表 <code>USER32!apfnDispatch</code> 中的索引值，这个函数指针表会在进程初始化 USER32.dll 的时候复制到 PEB 中，即 <code>PEB.KernelCallbackTable</code>。可以在 USER32.dll 中找到这个表：</p>
+<pre tabindex="0"><code>apfnDispatch    0x00 dq offset __fnCOPYDATA  ; DATA XREF: _UserClientDllInitialize+353↑o
+                0x01 dq offset __fnCOPYGLOBALDATA
+                0x02 dq offset __fnDWORD
+                      ......
+                0x7B dq offset __xxxClientAllocWindowClassExtraBytes
+                0x7C dq offset __xxxClientFreeWindowClassExtraBytes
+                0x7D dq offset __fnGETWINDOWDATA
+                0x7E dq offset __fnINOUTSTYLECHANGE
+                0x7F dq offset __fnHkINLPMOUSEHOOKSTRUCTEX
+                0x80 dq offset __xxxClientCallDefWindowProc
+</code></pre><p>因此如果我们可以在触发用户态回调之前，对函数指针表中的函数进行 hook，那么当被 hook 的函数真正调用时，就会执行我们想要的代码。</p>
+<p>在内核态的时候，窗口管理器通过临界区和全局锁对各种资源进行管理，防止出现访问冲突或者释放重利用的问题，但是当 win32k 想进入用户态的时候，需要先离开临界区，这样用户态的代码就可以随意进行更改对象属性、重新分配数组等操作，如果内核在从用户态返回之后没有对拥有的资源进行正确检查，就可能使用由用户态回调函数篡改的数据。</p>
+<p>还有一个小知识点，由于内核态和用户态的转换容易出现问题，为了方便对其进行追踪检查，win32k 有一个默认的命名规则，可能发生这种转换的函数在命名时会加上前缀 <code>xxx</code> 或者前缀 <code>zzz</code>。</p>
+<h2 id="2-cve-2021-1732-漏洞分析">2. CVE-2021-1732 漏洞分析</h2>
+<h3 id="21-补丁分析">2.1 补丁分析</h3>
+<p>CVE-2022-21882 是对 CVE-2021-1732 的绕过，因此我会同时分析这两个漏洞，首先看 CVE-2021-1732，这个漏洞时在 21 年 2 月被修复的，漏洞发生在窗口创建的时候，对比一下 1 月份和 2 月份的补丁中的 <code>win32kfull!xxxCreateWindowEx</code> 函数</p>
+<p>修复前：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">5</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) <span style="color:#f92672">=</span> xxxClientAllocWindowClassExtraBytes(cbWndExtra);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!*</span>(<span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">5</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    v265 <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">goto</span> LABEL_202;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( IsWindowBeingDestroyed(tagWND) <span style="color:#f92672">||</span> (<span style="color:#f92672">*</span>(_HMPheFromObject(v97) <span style="color:#f92672">+</span> <span style="color:#ae81ff">25</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">5</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;         <span style="color:#75715e">// pExtraBytes 置零
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">goto</span> destroyWindow;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>LABEL_212:
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( PsGetWin32KFilterSet() <span style="color:#f92672">!=</span> <span style="color:#ae81ff">5</span> <span style="color:#f92672">||</span> v94 )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    v101 <span style="color:#f92672">=</span> v275;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span></code></pre></div><p>修复前将 <code>xxxClientAllocWindowClassExtraBytes</code> 分配的空间地址直接赋值给了 <code>pExtraBytes</code> 字段，注意函数带有 <code>xxx</code> 前缀，说明其内部会发生到用户态的转换，而根据上面的分析，我们知道 <code>pExtraBytes</code> 和 <code>dwExtraFlag</code> 字段是具有关联性的，但是这里并没有对 <code>dwExtraFlag</code> 字段进行检查。</p>
+<p>修复后：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  v96 <span style="color:#f92672">=</span> xxxClientAllocWindowClassExtraBytes(v95);
+</span></span><span style="display:flex;"><span>  v338 <span style="color:#f92672">=</span> v96;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>v96 )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    v261 <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">goto</span> LABEL_202;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( IsWindowBeingDestroyed(tagWND_1)
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">||</span> (<span style="color:#f92672">*</span>(_HMPheFromObject(v97) <span style="color:#f92672">+</span> <span style="color:#ae81ff">25</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">||</span> (v316[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64, tagWND<span style="color:#f92672">::</span>RedirectedFieldpExtraBytes<span style="color:#f92672">::</span><span style="color:#66d9ef">operator</span><span style="color:#f92672">!=&lt;</span><span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span><span style="color:#f92672">&gt;</span>(tagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x140</span>, v316)) )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// destroyWindow 这部分代码没变化
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
+</span></span><span style="display:flex;"><span>  tagWNDK <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(tagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">5</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(tagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xE8</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x800</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )      
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    MicrosoftTelemetryAssertTriggeredNoArgsKM();
+</span></span><span style="display:flex;"><span>    tagWNDK <span style="color:#f92672">=</span> tagWND[<span style="color:#ae81ff">5</span>];
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">*</span>(tagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>) <span style="color:#f92672">=</span> v96;
+</span></span><span style="display:flex;"><span>LABEL_215:
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( PsGetWin32KFilterSet() <span style="color:#f92672">!=</span> <span style="color:#ae81ff">5</span> <span style="color:#f92672">||</span> v93 )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    v102 <span style="color:#f92672">=</span> v270;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span></code></pre></div><p>可以看到修复后没有直接进行赋值，而是是多了一个判断 <code>(v316[0] = 0i64, tagWND::RedirectedFieldpExtraBytes::operator!=&lt;unsigned __int64&gt;(tagWND + 0x140, v316))</code>，如果该判断为真会直接结束窗口。不会再继续进行正常流程，该函数定义为：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">bool</span> <span style="color:#66d9ef">__fastcall</span> tagWND<span style="color:#f92672">::</span>RedirectedFieldpExtraBytes<span style="color:#f92672">::</span><span style="color:#66d9ef">operator</span><span style="color:#f92672">!=&lt;</span><span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span><span style="color:#f92672">&gt;</span>(<span style="color:#66d9ef">__int64</span> a1, _QWORD <span style="color:#f92672">*</span>a2)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(a1 <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x118</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) <span style="color:#f92672">!=</span> <span style="color:#f92672">*</span>a2;  <span style="color:#75715e">// 即 *(*(tagWND + 0x140 - 0118) + 0x128 ) != 0
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>}
+</span></span></code></pre></div><p>根据注释，这个函数在判断 <code>pExtraBytes</code> 字段的数值是否为 0，如果不为 0，就判断为真。</p>
+<h3 id="22-补丁存在的问题">2.2 补丁存在的问题</h3>
+<p>目前来看补丁存在两个问题，第一个问题比较明显：补丁只比较了 <code>pExtraBytes</code> 字段和 0 之间的差别，并没有考虑和 <code>dwExtraFlag</code> 的关联性。</p>
+<p>第二个问题可能还需要仔细想一下，当我们在上面说 <code>xxxClientAllocWindowClassExtraBytes</code> 中存在内核态和用户态之间的转换时，它的实际含义是，这个函数内存在很多语句，其中有一个语句是对函数 <code>KeUserModeCallback</code> 的调用：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>v2 <span style="color:#f92672">=</span> KeUserModeCallback(<span style="color:#ae81ff">123</span>i64, <span style="color:#f92672">&amp;</span>length, <span style="color:#ae81ff">4</span>i64, <span style="color:#f92672">&amp;</span>outputbuffer, <span style="color:#f92672">&amp;</span>outputlength);
+</span></span></code></pre></div><p>ApiNumber 为 0x7B，根据 <code>USER32!apfnDispatch</code> 的定义，该数值代表函数 <code>__xxxClientAllocWindowClassExtraBytes</code>。</p>
+<p>真正发生状态转换的是 <code>KeUserModeCallback</code>，所以更好的方法是在这个函数调用之后马上对相关字段进行检查，否则如果有其他函数调用 <code>xxxClientAllocWindowClassExtraBytes</code>，同样的问题仍会出现。</p>
+<p>而之所以会如此修复，和公开的漏洞利用代码有关。</p>
+<h2 id="3-漏洞利用">3. 漏洞利用</h2>
+<p><em>注：因为这是第一次分析 win32k 漏洞利用，涉及很多具体漏洞无关的知识点，因此单独分出一个小节进行介绍。</em></p>
+<p>本小节分析的漏洞利用代码来自<a href="https://github.com/k-k-k-k-k/CVE-2021-1732/blob/main/CVE-2021-1732_Exploit.cpp">这里</a>。</p>
+<h3 id="31-如何造成类型混淆">3.1 如何造成类型混淆</h3>
+<p>根据上面的分析，如果想要利用 <code>pExtraBytes</code> 和 <code>dwExtraFlag</code> 的关联性，需要以某种手段，在 <code>KeUserModeCallback</code> 调用 0x7B 用户态回调时，修改这两个字段的数值，让其含义不匹配。</p>
+<p>而实现这一目标的，就是函数 <code>NtUserConsoleControl</code>，该函数会调用函数 <code>xxxConsoleControl(int num, struct _CONSOLE_PROCESS_INFO *proInfo, int size)</code>，当参数 <code>num</code> 为 6 时，该函数会执行到以下代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    ptagWND <span style="color:#f92672">=</span> ValidateHwnd(<span style="color:#f92672">*</span>proInfo);   <span style="color:#75715e">// proInfo 中保存了窗口句柄
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    pptagWNDK <span style="color:#f92672">=</span> ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">5</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xE8</span>i64) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x800</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )<span style="color:#75715e">// dwExtraFlag &amp; 0x800 != 0
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    {
+</span></span><span style="display:flex;"><span>      heapMem <span style="color:#f92672">=</span> (<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(ptagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x18</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x80</span>i64) <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(ptagWNDK_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>));<span style="color:#75715e">// 内核桌面堆基址 + pExtraBytes
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>                                        <span style="color:#75715e">// dwExtraFlag &amp; 0x800 == 0
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    {
+</span></span><span style="display:flex;"><span>      heapMem <span style="color:#f92672">=</span> DesktopAlloc(<span style="color:#f92672">*</span>(ptagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x18</span>), <span style="color:#f92672">*</span>(ptagWNDK_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xC8</span>), <span style="color:#ae81ff">0</span>i64);
+</span></span><span style="display:flex;"><span>      Object[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">=</span> heapMem;
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span>...
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) )           <span style="color:#75715e">// 如果之前 pExtraBytes 不为 0，这里认为就是额外空间的地址
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      {
+</span></span><span style="display:flex;"><span>        curProc <span style="color:#f92672">=</span> PsGetCurrentProcess(v24);
+</span></span><span style="display:flex;"><span>        cbWndExtra <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xC8</span>i64);
+</span></span><span style="display:flex;"><span>        pExtraBytes <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64);
+</span></span><span style="display:flex;"><span>        memmove(heapMem, pExtraBytes, cbWndExtra);<span style="color:#75715e">// 将额外空间的数据移动到新分配的空间
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(curProc <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x464</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x40000008</span>) <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>          xxxClientFreeWindowClassExtraBytes(ptagWND_1, <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(ptagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">40</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">296</span>i64));
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) <span style="color:#f92672">=</span> heapMem <span style="color:#f92672">-</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(ptagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x18</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x80</span>i64);<span style="color:#75715e">// pExtraBytes 重新赋值为新分配空间相对于内核桌面堆基址的偏移
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span>...
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xE8</span>i64) <span style="color:#f92672">|=</span> <span style="color:#ae81ff">0x800u</span>;          <span style="color:#75715e">// dwExtraFlag 设置 0x800 标志
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">goto</span> rtn;
+</span></span></code></pre></div><p>注意到这个函数实际上是在为 <code>dwExtraFlag</code> 设置 0x800 标志，同时如有必要，修改 <code>pExtraBytes</code> 为对应的偏移值。</p>
+<p>当 0x7B 用户回调发生时，实际调用的是函数 <code>user32!_xxxClientAllocWindowClassExtraBytes</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>NTSTATUS <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">_xxxClientAllocWindowClassExtraBytes</span>(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> <span style="color:#f92672">*</span>a1)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// [COLLAPSED LOCAL DECLARATIONS. PRESS KEYPAD CTRL-&#34;+&#34; TO EXPAND]
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>  v3 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  v4 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>  Result <span style="color:#f92672">=</span> RtlAllocateHeap(pUserHeap, <span style="color:#ae81ff">8u</span>, <span style="color:#f92672">*</span>a1);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> NtCallbackReturn(<span style="color:#f92672">&amp;</span>Result, <span style="color:#ae81ff">0x18u</span>, <span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>可以看到它是通过函数 <code>NtCallbackReturn</code> 将新分配的空间地址作为第一个参数传回内核的。</p>
+<p>所以我们可以在 hook <code>__xxxClientAllocWindowClassExtraBytes</code> 的时候，调用 <code>NtUserConsoleControl</code> 对 <code>dwExtraFlag</code> 字段进行修改，设置其 0x800 标志，然后调用 <code>NtCallbackReturn</code>，并选择一个自己想要的 <code>pExtraBytes</code> 作为第一个参数。之后系统会把我们设置的 <code>pExtraBytes</code> 作为额外空间相对于桌面堆基址的偏移进行访问。</p>
+<p>也就是说，通过构造类型混淆，我们可以读/写 <strong>桌面堆基址 + 有限偏移值</strong> 处的数据。</p>
+<h3 id="32-类型混淆到本地提权">3.2 类型混淆到本地提权</h3>
+<p>之前在<a href="https://www.zoemurmure.top/posts/hevd_stackoberflowgs/">学习 HEVD</a> 的时候，我忽略了这一部分的内容，导致在学习这个漏洞的利用时还是缺乏思路。内核漏洞一般能够做到任意地址读/写，但是这样的能力该如何实现权限提升呢？针对这次分析的漏洞，甚至只能做到 <strong>桌面堆基址 + 有限偏移值</strong> 的读/写操作，这种情况又要怎么提权呢？</p>
+<p>参考资料[7] 在这个问题上给出了很好的解答，从内核漏洞到达本地提权，需要三个步骤：</p>
+<ol>
+<li>将内核漏洞扩展为任意地址读/写原语；</li>
+<li>寻找内核地址泄露的方法，获取任一内核对象地址，从而通过 EPROCESS 链找到系统进程；</li>
+<li>将系统进程令牌复制到漏洞利用进程中，从而实现权限提升。</li>
+</ol>
+<h4 id="321-任意读写原语">3.2.1 任意读写原语</h4>
+<p>首先有一个知识点需要明确，在<a href="https://www.zoemurmure.top/posts/hevd_stackoberflowgs/#44-smep-%E7%BB%95%E8%BF%87">学习 HEVD</a> 以及上面 IDA 代码分析的过程，已知可以通过函数 <code>HMValidateHandle</code>，传入窗口句柄作为参数，获取该窗口的 <code>tagWNDK</code> 结构的地址。而函数 <code>HMValidateHandle</code> 并不是导出函数，因此需要通过 <a href="https://www.zoemurmure.top/posts/hevd_stackoberflowgs/#44-smep-%E7%BB%95%E8%BF%87">学习 HEVD</a> 中的方法遍历搜索得到该函数地址。</p>
+<p>接下来继续获取任意读写原语。原语的获得主要涉及到 3 个窗口：窗口 0、窗口 1 和窗口 2。</p>
+<ol>
+<li>通过喷射的方式创建多个(50个)窗口，释放后面的窗口，只保留前两个窗口作为窗口 0 和窗口 1，同时调用 <code>NtUserConsoleControl</code> 将窗口 0 修改为偏移模式。注意这里并不是在利用漏洞，只是单纯做函数调用，并没有引起类型混淆，此时窗口 0 的 <code>pExtraBytes</code> 字段保存的是窗口 0 额外空间的偏移地址；</li>
+<li>通过调用 <code>HMValidateHandle</code> 获得窗口 0 和窗口 1 tagWNDK 的偏移地址；</li>
+<li>创建窗口 2，通过 Hook 的方式将窗口 2 修改为偏移模式，同时修改 <code>pExtraBytes</code> 字段为窗口 0 tagWNDK 的偏移地址。此时可以通过窗口 2 的 <code>SetWindowLongW</code> 修改窗口 0 的 tagWNDK 结构；</li>
+<li>“任意”写原语：修改窗口 0 的 <code>cbWndExtra</code> 字段为可能的最大值，此时可以通过窗口 0 的 <code>SetWindowLongW/SetWindowLongPtrW</code> 进行很大范围的 OOB 写入。其实并没有实现“任意”写，但是已经足够进行漏洞利用；</li>
+</ol>
+<p>任意读原语比较复杂，它的关键在于函数 <code>GetMenuBarInfo</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>BOOL <span style="color:#a6e22e">GetMenuBarInfo</span>(
+</span></span><span style="display:flex;"><span>  [in]      HWND         hwnd,
+</span></span><span style="display:flex;"><span>  [in]      LONG         idObject,   <span style="color:#f92672">//</span> <span style="color:#960050;background-color:#1e0010">当数值为</span> OBJID_MENU(<span style="color:#f92672">-</span><span style="color:#ae81ff">3</span>) <span style="color:#960050;background-color:#1e0010">时，表示获取指定窗口的菜单栏</span>
+</span></span><span style="display:flex;"><span>  [in]      LONG         idItem,     <span style="color:#75715e">// 当数值为 1 时表示获取菜单上第一项的信息，以此类推
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  [in, out] PMENUBARINFO pmbi        <span style="color:#75715e">// 用于接收信息
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>);
+</span></span></code></pre></div><p>这个函数最终会调用 <code>win32kfull!xxxGetMenuBarInfo</code>，当 <code>idObject</code> 数值为 <code>-3</code> 时，它会执行以下一段代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(ptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x1F</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x40</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )       <span style="color:#75715e">// 0x1C 偏移处是 dwStyle，WS_CHILD 数值为 0x40000000L，这里就是在检查是否设置了 WS_CHILD，如果设置则无法继续向下执行
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">goto</span> toEnd;
+</span></span><span style="display:flex;"><span>  spMenu <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xA8</span>);                   <span style="color:#75715e">// idObject == -3 才继续往下执行
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  SmartObjStackRefBase<span style="color:#f92672">&lt;</span>tagMENU<span style="color:#f92672">&gt;::</span><span style="color:#66d9ef">operator</span><span style="color:#f92672">=</span>(<span style="color:#f92672">&amp;</span>spMenu_1, spMenu);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>SmartObjStackRef<span style="color:#f92672">&lt;</span>tagMENU<span style="color:#f92672">&gt;::</span><span style="color:#66d9ef">operator</span> <span style="color:#66d9ef">bool</span>(<span style="color:#f92672">&amp;</span>spMenu_1)
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">||</span> idItem_1 <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">||</span> idItem_1 <span style="color:#f92672">&gt;</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>spMenu_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>i64) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x2C</span>i64) )<span style="color:#75715e">// [+28h]+2ch &gt;= idItem 才继续往下执行
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">goto</span> toEnd;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>spMenu_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x40</span>i64) <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>spMenu_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x44</span>i64) )<span style="color:#75715e">// +40h +44h 偏移处不为零
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( idItem_1 )                             <span style="color:#75715e">// idItem 不为 0
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    {
+</span></span><span style="display:flex;"><span>      ptagWNDK_2 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>);
+</span></span><span style="display:flex;"><span>      x60 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x60</span> <span style="color:#f92672">*</span> idItem_1;                    <span style="color:#75715e">// idItem 设置为 1，方便计算
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      pdesired <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>spMenu_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x58</span>i64);        <span style="color:#75715e">// +58h 这里存储想要读取的地址 target 再减去 0x40
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      desired <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#ae81ff">0x60</span> <span style="color:#f92672">*</span> idItem_1 <span style="color:#f92672">+</span> pdesired <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x60</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(ptagWNDK_2 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x1A</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x40</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> ) <span style="color:#75715e">// 这里检查的是 dwExStyle 是不是 WS_EX_LAYOUTRTL,这里没设置这个风格，所以进入下边的 else
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      {
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// pass
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">else</span>                                      <span style="color:#75715e">// 进入这里执行
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      {
+</span></span><span style="display:flex;"><span>        v64 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(desired <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x40</span>) <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(ptagWNDK_2 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x58</span>);<span style="color:#75715e">// desired + 0x40h, 所以传入的是 target - 0x40h
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        pmbi<span style="color:#f92672">-&gt;</span>rcBar.left <span style="color:#f92672">=</span> v64;                 <span style="color:#75715e">// 最终输出的 mbi 中，rcBar.left 位置存储的是 target(0~3) + Rect.left
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        pmbi<span style="color:#f92672">-&gt;</span>rcBar.right <span style="color:#f92672">=</span> v64 <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(x60 <span style="color:#f92672">+</span> pdesired <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x60</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x48</span>i64);<span style="color:#75715e">// 最终输出的 mbi 中，rcBar.right 位置存储的是 rcBar.left + target(8~11)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      }
+</span></span><span style="display:flex;"><span>      v65 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x5C</span>i64) <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(x60 <span style="color:#f92672">+</span> pdesired <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x60</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x44</span>i64);
+</span></span><span style="display:flex;"><span>      pmbi<span style="color:#f92672">-&gt;</span>rcBar.top <span style="color:#f92672">=</span> v65;                    <span style="color:#75715e">// 最终输出的 mbi 中，rcBar.top 位置存储的是 Rect.top + target(4~7)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      v40 <span style="color:#f92672">=</span> v65 <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(x60 <span style="color:#f92672">+</span> pdesired <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x60</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x4C</span>i64);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e">// pass
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    }
+</span></span><span style="display:flex;"><span>    pmbi<span style="color:#f92672">-&gt;</span>rcBar.bottom <span style="color:#f92672">=</span> v40;                   <span style="color:#75715e">// 最终输出的 mbi 中，rcBar.bottom 位置存储的是 rcBar.top + target(12~15)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
+</span></span></code></pre></div><p><code>spMenu</code> 位于 <code>tagWND</code> 偏移 0xA8 的位置，如果可以将该字段修改为自己构造的假的 <code>spMenu</code> 结构，就能够实现任意读。其中 <code>fakeSpMenu</code> 需要满足以下条件：</p>
+<ol>
+<li>偏移 0x40、0x44 处的数据不为零；</li>
+<li>偏移 0x28 位置指向一个空间，该空间偏移 0x2C 处的数据不为零；</li>
+<li>偏移 0x58 位置指向一个空间，该空间处用于保存想要读取的地址 target 再减去 0x40 的数值；</li>
+</ol>
+<p><code>fakeSpMenu</code> 的设置不能通过任意写的方式，因为到目前为止，从始至终我们获得的都是 tagWNDK 的偏移地址，而无法确定 tagWND 的位置，幸运的是，有一个更方便的方法可以用来设置 <code>spMenu</code> —— <code>SetWindowLongPtr</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>LONG_PTR <span style="color:#a6e22e">SetWindowLongPtrW</span>(
+</span></span><span style="display:flex;"><span>  [in] HWND     hWnd,
+</span></span><span style="display:flex;"><span>  [in] <span style="color:#66d9ef">int</span>      nIndex,
+</span></span><span style="display:flex;"><span>  [in] LONG_PTR dwNewLong
+</span></span><span style="display:flex;"><span>);
+</span></span></code></pre></div><p>这个函数和 <code>SetWindowLong</code> 类似，不过可以操作 8 字节数据。它会进一步调用 <code>win32kfull!xxxSetWindowLongPtr</code>，当 <code>nIndex</code> 为 <code>GWLP_ID(-12)</code> 时，它会调用 <code>win32kfull!xxxSetWindowData</code> 并执行以下代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  <span style="color:#66d9ef">switch</span> ( nIndex )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">case</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">12</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>      ptagWNDK <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">40</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(ptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x1F</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xC0</span>) <span style="color:#f92672">==</span> <span style="color:#ae81ff">0x40</span> )<span style="color:#75715e">// 如果设置了 WS_CHILD
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      {
+</span></span><span style="display:flex;"><span>        v18 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xA8</span>);                <span style="color:#75715e">// +A8h spmenu
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#f92672">*</span>(ptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x98</span>) <span style="color:#f92672">=</span> dwNewLong;
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xA8</span>) <span style="color:#f92672">=</span> dwNewLong;
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// pass
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      }
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// pass
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// pass
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">return</span> v18;
+</span></span></code></pre></div><p>也就是说如果传入参数 <code>nIndex</code> 数值为 -12，而且参数 <code>hWnd</code> 代表的窗口设置了 <code>WS_CHILD</code> 样式，<code>SetWindowLongPtr</code> 会对窗口的 <code>spMenu</code> 进行设置，而且会把旧的 <code>spMenu</code> 数值作为返回值返回。</p>
+<p>对任意读原语进行总结：</p>
+<ol>
+<li>通过任意写原语设置窗口 1 的样式 <code>WS_CHILD</code>。注：<code>dwStyle</code> 位于 <code>tagWNDK</code> 偏移 0x1C 的位置，只要窗口 1 的 <code>tagWNDK</code> 位于窗口 0 的 <code>tagWNDK</code> 的后面，就可以通过窗口 0 的 <code>SetWindowLongW/SetWindowLongPtrW</code> 对窗口 1 的 <code>dwStyle</code> 进行修改；</li>
+<li>构造符合上面列出条件的 <code>fakeSpMenu</code>；</li>
+<li>通过 <code>SetWindowLongPtr</code> 设置窗口 1 的 <code>spMenu</code> 为 <code>fakeSpMenu</code>；</li>
+<li>通过任意写原语取消窗口 1 的样式 <code>WS_CHILD</code>；</li>
+<li>调用 <code>GetMenuBarInfo(hWND1, -3, 1, &amp;mbi)</code> ，按照上面的代码注释计算得到目标地址处的数值。</li>
+</ol>
+<h4 id="322-获取-eprocess-地址">3.2.2 获取 <code>EPROCESS</code> 地址</h4>
+<p>内核地址泄露的方法其实在上面已经提到了，在调用 <code>SetWindowLongPtr</code> 设置窗口 1 的 <code>spMenu</code> 字段时，会返回旧的 <code>spMenu</code> 数值，该数据就是一个内核地址，但是问题在于如何得到 <code>EPROCESS</code> 地址。</p>
+<p>参考资料[8] 作者提到了 <code>spMenu</code> 中保存了当前进程的 <code>EPROCESS</code>，但是并没有提到如何得知这一信息，如果单纯以 <code>EPROCESS</code> 作为目标，幸运的话确实能发现 <code>EPROCESS</code> 的位置：</p>
+<pre tabindex="0"><code>// 首先在调试的时候确定了旧的 spMenu 地址为 fffff0ce808211e0
+
+3: kd&gt; !process 0 0 exp.exe
+PROCESS ffff9d07b784c340
+    SessionId: 1  Cid: 0498    Peb: a67dffa000  ParentCid: 1048
+    DirBase: 153bd000  ObjectTable: ffffdf09dfef9140  HandleCount: 131.
+    Image: exp.exe
+
+3: kd&gt; s fffff0ce808211e0 l10000000 40 c3 84 b7 07 9d ff ff
+fffff0ce`85229010  40 c3 84 b7 07 9d ff ff-01 00 00 00 30 c0 0c 14  @...........0...
+
+3: kd&gt; dqs fffff0ce808211e0
+fffff0ce`808211e0  00000000`000301a7
+fffff0ce`808211e8  00000000`00000001
+fffff0ce`808211f0  00000000`00000000
+fffff0ce`808211f8  ffff9d07`b61ffde0
+fffff0ce`80821200  fffff0ce`808211e0
+fffff0ce`80821208  fffff0ce`81221890
+fffff0ce`80821210  00000000`00021890
+fffff0ce`80821218  00000008`00000000
+fffff0ce`80821220  00000013`00000078
+...
+
+// 观察 spMenu 这里的数据，首先想要检查的肯定是位于 0x18 偏移的 ffff9d07`b61ffde0
+
+3: kd&gt; s ffff9d07`b61ffde0 l10000000 10 90 22 85 ce f0 ff ff
+ffff9d07`b61ffee0  10 90 22 85 ce f0 ff ff-00 00 00 00 00 00 00 00  ..&#34;.............
+ffff9d07`b784c848  10 90 22 85 ce f0 ff ff-b0 44 94 b8 07 9d ff ff  ..&#34;......D......
+</code></pre><p>以上步骤可以确定 <code>[spMenu + 0x18] + 0x100</code> 的位置保存了 <code>PEPROCESS</code>，但是上面的步骤是我在已经知道答案的情况下进行的推导，如果一切信息不明，可能很难得到相同结论。或许网上有更多的资料，或者作者经过了更多的调试分析。</p>
+<h3 id="33-小节">3.3 小节</h3>
+<p>最后替换当前进程令牌的过程是一个比较通用的方法，并不困难，因此这里不再赘述。到此为止就能够利用 CVE-2021-1732 漏洞实现本地提权了。</p>
+<p>在 2.2 小节中，我们曾经说过，微软之所以会通过检查 <code>pExtraBytes</code> 字段是否为 0 对漏洞进行修复，是因为上面泄露的对该漏洞的利用仅仅是通过 hook 的方式调用 <code>NtUserConsoleControl</code> 设置 <code>dwExtraFlag</code> 的 0x800 标志，并将 <code>pExtraBytes</code> 修改为想要的偏移值。在正常情况下，如果没有对 <code>__xxxClientAllocWindowClassExtraBytes</code> 进行 hook，<code>pExtraBytes</code> 字段不会被修改，保持为 0。因此微软仅针对这一漏洞利用方式对漏洞进行了修复。</p>
+<p>但是事实证明，该漏洞的利用方式不止一种，也就是我们接下来要介绍的 CVE-2022-21882。</p>
+<h2 id="4-cve-2022-21882-漏洞分析">4. CVE-2022-21882 漏洞分析</h2>
+<h3 id="41-漏洞原理">4.1 漏洞原理</h3>
+<p>在 2.2 小节 CVE-2021-1732 补丁存在的问题中提到，微软修复的是 <code>win32kfull!xxxCreateWindowEx</code> 函数，对 <code>__xxxClientAllocWindowClassExtraBytes</code> 调用结束之后的 <code>pExtraBytes</code> 字段进行了检查。但是真正有问题的是 <code>__xxxClientAllocWindowClassExtraBytes</code> 函数。在 CVE-2021-1732 漏洞发现的时候，只有 <code>xxxCreateWindowEx</code> 一个函数调用了 <code>__xxxClientAllocWindowClassExtraBytes</code>，但是随着系统的更新升级，win32k 中增加了新的代码，又有新的函数调用了 <code>__xxxClientAllocWindowClassExtraBytes</code>。检查 21 年 12 月的 win32kfull.sys 文件，会发现函数 <code>xxxDesktopWndProcWorker</code>，<code>xxxMenuWindowProc</code>，<code>xxxSBWndProc</code>，<code>xxxSwitchWndProc</code>，<code>xxxTooltipWndProc</code> 都调用了 <code>__xxxClientAllocWindowClassExtraBytes</code>，而这些函数并没有像 <code>xxxCreateWindowEx</code> 一样进行检查，导致同样的漏洞发生。</p>
+<h3 id="42-补丁分析">4.2 补丁分析</h3>
+<p>更新后的 win32kfull 首先是做了一个相似代码的功能整合，将上述几个调用 <code>__xxxClientAllocWindowClassExtraBytes</code> 的函数中相同功能的代码放入了同一函数 <code>xxxValidateClassAndSize</code> 中，由该函数调用 <code>__xxxClientAllocWindowClassExtraBytes</code>。这部分修复和漏洞无关。</p>
+<p>然后补丁在 <code>xxxClientAllocWindowClassExtraBytes</code> 函数结尾处加入了下面一段代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  v4 <span style="color:#f92672">=</span> KeUserModeCallback(<span style="color:#ae81ff">123</span>i64, <span style="color:#f92672">&amp;</span>Length_1, <span style="color:#ae81ff">4</span>i64, <span style="color:#f92672">&amp;</span>OutputBuffer, <span style="color:#f92672">&amp;</span>OutputBufferLength);
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// pass 一些不变的检查
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xE8</span>i64) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x800</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )<span style="color:#75715e">// dwExtraFlag 检查
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    result <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>    result <span style="color:#f92672">=</span> Mem_1;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> result;
+</span></span></code></pre></div><p>这次直接在回调函数执行完成后对 <code>dwExtraFlag</code> 进行了检查，防止回调函数将窗口修改成偏移模式。</p>
+<h3 id="43-漏洞利用">4.3 漏洞利用</h3>
+<p>由于 CVE-2022-21882 和 CVE-2021-1732 的漏洞原理完全一致，两者的利用方法也相同，在这里不再赘述。</p>
+<h2 id="5-总结">5. 总结</h2>
+<p>这篇文章的内容主要集中在 <strong>基础知识</strong> 以及 <strong>漏洞利用</strong> 上，这两处也是我在最初接触 win32k 漏洞时始终搞不清楚的地方。通过对这两个同类漏洞的学习，我对 win32k 类漏洞有了初步的认识，能够将 “基础类知识” 和 “漏洞类知识” 区分开，同时明确了此类漏洞的分析与挖掘的入手点。</p>
+<p>但是目前我也只看了这一类漏洞，而 win32k 还有其他类型的漏洞，因此仅仅这一篇文章并不能解决所有问题，但是我希望阅读这篇文章，能够为作为 win32k 漏洞小白的你指引方向，方便之后对其他漏洞的分析。</p>
+<h2 id="6-参考资料">6. 参考资料</h2>
+<ol>
+<li><a href="https://paper.seebug.org/102/">经典内核漏洞调试笔记</a></li>
+<li><a href="http://blog.topsec.com.cn/cve-2022-21882-win32k%e5%86%85%e6%a0%b8%e6%8f%90%e6%9d%83%e6%bc%8f%e6%b4%9e%e6%b7%b1%e5%85%a5%e5%88%86%e6%9e%90/">CVE-2022-21882 Win32k内核提权漏洞深入分析</a></li>
+<li>Programming Windows 5th</li>
+<li>Kernel Attacks through User-Mode Callbacks, by Tarjei Mandt</li>
+<li><a href="http://blog.topsec.com.cn/cve-2022-21882-win32k%e5%86%85%e6%a0%b8%e6%8f%90%e6%9d%83%e6%bc%8f%e6%b4%9e%e6%b7%b1%e5%85%a5%e5%88%86%e6%9e%90/">CVE-2022-21882 Win32k内核提权漏洞深入分析</a></li>
+<li><a href="https://ti.dbappsecurity.com.cn/blog/articles/2021/02/10/windows-kernel-zero-day-exploit-is-used-by-bitter-apt-in-targeted-attack-cn/">0DAY攻击！首次发现蔓灵花组织在针对国内的攻击活动中使用WINDOWS内核提权0DAY漏洞（CVE-2021-1732）</a></li>
+<li><a href="https://www.secpulse.com/archives/157286.html">深入剖析CVE-2021-1732漏洞</a></li>
+<li><a href="https://github.com/k-k-k-k-k/CVE-2021-1732/blob/main/CVE-2021-1732%E7%A0%94%E7%A9%B6%E5%8F%8AExploit%E5%BC%80%E5%8F%91.pdf">CVE-2021-1732研究及Exploit开发</a></li>
+<li><a href="https://googleprojectzero.github.io/0days-in-the-wild/0day-RCAs/2022/CVE-2022-21882.html">CVE-2022-21882: Win32k Window Object Type Confusion</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/cve/" rel="tag">cve</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+<div class="authorbox clearfix">
+	<figure class="authorbox__avatar">
+		<img alt="zoemurmure avatar" src="/img/avatar.jpg" class="avatar" height="90" width="90">
+	</figure>
+	<div class="authorbox__header">
+		<span class="authorbox__name">About zoemurmure</span>
+	</div>
+	<div class="authorbox__description">
+		二进制安全研究菜鸟，微信公众号：逻辑门
+	</div>
+</div>
+
+<nav class="pager flex">
+	<div class="pager__item pager__item--prev">
+		<a class="pager__link" href="/posts/cve_2023_21752_1/" rel="prev">
+			<span class="pager__subtitle">«&thinsp;Previous</span>
+			<p class="pager__title">[CVE-2023-21752] Windows Backup Service 本地提权漏洞分析</p>
+		</a>
+	</div>
+</nav>
+
+
+
+
+<section class="comments">
+<script src="https://utteranc.es/client.js"
+	repo="zoemurmure/zoemurmure.github.io"
+	issue-term="pathname"
+	theme="github-light"
+	crossorigin="anonymous"
+	async>
+</script>
+</section>
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2023 Logic Security 逻辑门.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+<script src="/js/custom.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.6/MathJax.js?config=TeX-AMS-MML_HTMLorMML" async></script>
+</body>
+</html>
