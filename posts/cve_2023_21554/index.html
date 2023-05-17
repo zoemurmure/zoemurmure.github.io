@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[CVE-2023-21554] Windows Message Queuing 远程代码执行漏洞分析 - Logic Security 逻辑门</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="CVE-2023-21554 Windows Message Queuing 远程代码执行漏洞分析">
+		<meta property="og:title" content="[CVE-2023-21554] Windows Message Queuing 远程代码执行漏洞分析" />
+<meta property="og:description" content="CVE-2023-21554 Windows Message Queuing 远程代码执行漏洞分析" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://www.zoemurmure.top/posts/cve_2023_21554/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2023-05-17T17:14:55+08:00" />
+<meta property="article:modified_time" content="2023-05-17T17:14:55+08:00" />
+
+		<meta itemprop="name" content="[CVE-2023-21554] Windows Message Queuing 远程代码执行漏洞分析">
+<meta itemprop="description" content="CVE-2023-21554 Windows Message Queuing 远程代码执行漏洞分析"><meta itemprop="datePublished" content="2023-05-17T17:14:55+08:00" />
+<meta itemprop="dateModified" content="2023-05-17T17:14:55+08:00" />
+<meta itemprop="wordCount" content="5796">
+<meta itemprop="keywords" content="cve,binary,poc," />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	<link rel="stylesheet" href="/css/custom.css">
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security 逻辑门" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security 逻辑门</div>
+					<div class="logo__tagline">欢迎关注同名微信公众号：逻辑门(*^_^*)</div>
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/history/">
+				
+				<span class="menu__text">历史文章</span>
+				
+			</a>
+		</li>
+	</ul>
+</nav>
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[CVE-2023-21554] Windows Message Queuing 远程代码执行漏洞分析</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-05-17T17:14:55&#43;08:00">2023-05-17</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    <span class="post-date">共5796字</span>，阅读约<span class="more-meta"> 12 分钟</span>
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" rel="category">漏洞分析</a>
+	</span>
+</div></div>
+		</header>
+		
+<div class="post__toc toc">
+	<div class="toc__title">Page content</div>
+	<div class="toc__menu">
+		<nav id="TableOfContents">
+  <ul>
+    <li><a href="#0-前言">0. 前言</a></li>
+    <li><a href="#1-背景知识介绍">1. 背景知识介绍</a>
+      <ul>
+        <li><a href="#11-msmq">1.1 MSMQ</a></li>
+        <li><a href="#12-usermessage">1.2 UserMessage</a></li>
+        <li><a href="#13-段结构">1.3 段结构</a></li>
+      </ul>
+    </li>
+    <li><a href="#2-补丁对比">2. 补丁对比</a></li>
+    <li><a href="#3-漏洞触发">3. 漏洞触发</a>
+      <ul>
+        <li><a href="#31-首次尝试">3.1 首次尝试</a></li>
+        <li><a href="#32-cqmpacketcqmpacket-详细分析">3.2 <code>CQmPacket::CQmPacket</code> 详细分析</a></li>
+        <li><a href="#33-如何触发">3.3 如何触发</a></li>
+        <li><a href="#34-数据包详细解释">3.4 数据包详细解释</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-漏洞总结">4. 漏洞总结</a></li>
+    <li><a href="#5-总结">5. 总结</a></li>
+    <li><a href="#6-参考链接">6. 参考链接</a></li>
+  </ul>
+</nav>
+	</div>
+</div><div class="content post__content clearfix">
+			<h2 id="0-前言">0. 前言</h2>
+<p>这篇文章介绍了 CVE-2023-21554 漏洞，该漏洞存在于微软的消息队列 (MSMQ) 服务中，由于该服务没有正确对数据包中的数据进行验证，攻击者利用该漏洞可以实现远程命令执行。</p>
+<p>由于对 MSMQ 服务并不熟悉，我首先花费了大量篇幅介绍该服务及相关数据结构，之后通过补丁对比确定了漏洞所处位置，然后通过修改官网文档提供的数据包示例尝试进行漏洞触发，最后对漏洞原理及整个漏洞分析过程进行了总结。</p>
+<h2 id="1-背景知识介绍">1. 背景知识介绍</h2>
+<h3 id="11-msmq">1.1 MSMQ</h3>
+<p>Message Queue(消息队列)：一种异步的消息传递机制。应用程序可以将消息发送的消息队列，也可以从消息队列中读取消息，消息队列让发送方程序和接受方程序能够彼此异步操作。</p>
+<p>微软实现的消息队列服务就叫做 Microsoft Message Queuing (MSMQ)，可以在 “启用或关闭 Windows 功能” 中安装该服务。</p>
+<p>MSMQ 包含各种协议，用于支持微软实现消息队列服务：</p>
+<p><img src="/img/2023-04-26-10-55-06.png" alt=""></p>
+<p>这里主要关注和消息传递有直接关联的 Message Queuing Binary Protocol，这个协议定义了一种在位于不同主机上的两个消息队列之间可靠地传输消息的机制。</p>
+<p>根据文档，消息队列系统中传递的消息具有一系列消息属性，包含了和消息有关的各种元数据，以及一个叫做消息体的特殊属性，包含了应用程序要发送的真正信息，消息体的内容没有任何限制。</p>
+<p>在进行消息传递时，客户端会首先向服务端建立一个基于 TCP 或者 SPX 的协议会话，其中服务端 TCP 连接使用 1801 端口，SPX 连接使用 876 端口，客户端端口任意。</p>
+<p>协议会话通过发送 EstablishConnection 数据包、ConnectionParameter 数据包进行初始化，之后双方可以任意发送 UserMessage 数据包，并通过 SessionAck 数据包、OrderAck 数据包以及 FinalAck 数据包进行确认。</p>
+<h3 id="12-usermessage">1.2 UserMessage</h3>
+<p>重点关注 UserMessage 数据包，这个数据包总是包含一个完整的消息，它用于在发送方和接收方之间传递应用程序定义以及管理确认消息。</p>
+<p>从结构上说，UserMessage 数据包由一系列头部组成，包括必须头部和可变头部。必须头部<strong>必须</strong>出现在所有的 UserMessage 数据包中，包括 BaseHeader、UserHeader 和 MessagePropertiesHeader，可变头部在文档中直接列出的包括 TransactionHeader、SecurityHeader、DebugHeader、SoapHeader、MultiQueueFormatHeader 和 SessionHeader，但实际上文档中还介绍了其他头部信息，通过 IDA 进行反编译也可以发现一些头部信息。</p>
+<p>对于 UserMessage 的处理位于 mqqm.dll 中的 <code>CQmPacket::CQmPacket</code> 函数中，通过对该函数的大致观察，可以发现它按照固定的顺序线性处理 UserMessage 中的各个头部（在 IDA 中使用 段/section 表示各个头部）：</p>
+<p><img src="/img/2023-05-05-15-49-39.png" alt=""></p>
+<h3 id="13-段结构">1.3 段结构</h3>
+<p>虽然不同段具有的字段有差异，但是总体结构具有相似性，都是由几个固定字段 + 几个可变字段组成。</p>
+<p>由于 <code>CQmPacket::CQmPacket</code> 是按照固定顺序线性处理 <code>UserMessage</code> 数据包，因此它一定能够使用某种方法定位下一段的位置。大致存在以下几种情况：</p>
+<ol>
+<li>段中可变字段的长度不固定，存在 Flags 字段标明是否存在某个可变字段，同时存在字段标明了可变字段的长度；</li>
+<li>段中可变字段的长度固定，存在 Flags 字段标明是否存在某个可变字段；</li>
+<li>段中不包含可变字段，因此总体长度固定，不存在和长度相关的字段；</li>
+</ol>
+<p>举例来说：</p>
+<p>SecurityHeader 符合第一种情况，其结构如下，其中 Flags 字段中存在标志位表明 SecurityData 字段是否存在，几个 <code>*Size</code> 字段加在一起就是 SecurityData 字段的大小：</p>
+<pre tabindex="0"><code>                                1               2               3
+0               7               5               3               1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|             Flags             |         SenderIdSize          |
+|       EncryptionKeySize       |        SenderCertSize         |
+|       ProviderInfoSize        |                               |
+|                     SecurityData (variable)                   |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><p>DebugHeader 符合第二种情况，其结构如下，其中 Flags 字段中存在标志位表明 QueueIdentifier 字段是否存在，该字段固定 16 字节长度：</p>
+<pre tabindex="0"><code>                                1               2               3
+0               7               5               3               1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|             Flags             |           Reserved            |
+|                                                               |
+|                                                               |
+|              QueueIdentifier (16 bytes, optional)             |
+|                                                               |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><p>SessionHeader 符合第三种情况，该段固定 16 字节大小，其结构如下：</p>
+<pre tabindex="0"><code>                                1               2               3
+0               7               5               3               1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|       AckSequenceNumber       |  RecoverableMsgAckSeqNumber   |
+|                    RecoverableMsgAckFlags                     |
+|     UserMsgSequenceNumber     |    RecoverableMsgSeqNumber    |
+|           WindowSize          |            Reserved           |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><h2 id="2-补丁对比">2. 补丁对比</h2>
+<p>通过比较修复前后的 mqqm.dll 文件，发现微软修复了 <code>CQmPacket::CQmPacket</code> 函数以及多个 <code>SectionIsValid</code> 函数：</p>
+<p><img src="/img/2023-04-26-16-18-13.png" alt=""></p>
+<p>根据交叉引用，<code>SectionIsValid</code> 函数由 <code>CQmPacket::CQmPacket</code> 调用，主要用于在遍历 UserMessage 的时候检查每个段中的内容是否合法，比如说某个标志位设置该段需要包含某个可变字段，这个函数就会检查该段是否真的包含了该可变字段，以及字段的长度是否符合要求这类问题，除此之外还会检查根据当前段中字段内容计算得到下一段的地址，是否超过了整个数据包的范围。</p>
+<p>经过检查，修复代码修改逻辑主要是在获取下一段地址的部分，每个 <code>SectionIsValid</code> 函数的修复方法略有差别，原因在于不同段结构不同，其计算下一段地址的方式也有差别，根据 1.3 小节总结的三种不同类型的段结构，修复方法总结如下：</p>
+<ol>
+<li>
+<p>段结构类型一：可变长度不固定，存在字段标明可变字段长度，包括 <code>CPropertyHeader</code>，<code>CSecurityHeader</code>，<code>CUserHeader</code> 和 <code>CBaseMqfHeader</code>
+这类函数增加了对和字段长度相关字段中数值的检查（是否溢出），并在最后调用了一个新增函数 <code>GetNextSectionPtrSafe</code>，且第三个参数 <code>varlen</code> 通过字段数值计算得到；</p>
+<p><em>注：由于 <code>CBaseMqfHeader</code> 段结构简单，实际并未调用该新增函数，这里作为特殊情况不考虑</em></p>
+<p><img src="/img/2023-05-12-15-10-00.png" alt=""></p>
+</li>
+<li>
+<p>段结构类型二：可变长度固定，存在字段标明可变字段是否存在，包括 <code>CDebugSection</code> 和 <code>CXactHeader</code>
+这类通过检查 Flag 字段判断是否存在可变字段，同样在最后调用了新增函数 <code>GetNextSectionPtrSafe</code>，且第三个参数 <code>varlen</code> 为 0 或者固定数值（可变字段的固定长度）；</p>
+<p><img src="/img/2023-05-12-15-11-13.png" alt=""></p>
+</li>
+<li>
+<p>段结构类型三：不包含可变字段，可想而知这种类型的段不涉及此类问题；</p>
+</li>
+<li>
+<p>其他结构类型：包括 <code>CMsgGroupHeader</code> 和 <code>CMsgDeadletterHeader</code>
+其中 <code>CMsgGroupHeader</code> 在文档中没有记录，但是通过分析代码，发现其结构和 <code>CMsgDeadletterHeader</code> 类似，两者均包含可变字段，且字段长度不固定，可变字段以 <code>\x00</code> 结尾，因此没有使用单独的字段说明可变字段的长度
+这类函数增加了 <code>\x00</code> 位置是否超过整个数据包结尾的代码，没有调用 <code>GetNextSectionPtrSafe</code>。</p>
+<p><img src="/img/2023-05-12-15-13-08.png" alt=""></p>
+</li>
+</ol>
+<p>其中 <code>GetNextSectionPtrSafe</code> 函数定义如下：</p>
+<p><img src="/img/2023-05-11-18-17-32.png" alt=""></p>
+<p>其中 <code>len</code> 和 <code>varlen</code> 参数分别对应一个段中的固定字段长度和可变字段长度，相加得到段的总长度。</p>
+<p>经过检查 <code>CQmPacket::CQmPacket</code> 中新增的代码也具有同样的功能，除了文档中已列出以及 symbols 中明确列出的几个头部之外，在 <code>CQmPacket::CQmPacket</code> 函数中还通过 UserHeader 的 Flag 字段的一些标志位索引遍历了其他段，但是在文档对于 Flag 的说明中，相关标志位显示为 Reserved，我怀疑可能是新增加的功能，但是文档并没有及时更新，或者这部分信息就是不对外公开的。在对这部分未公开段的索引遍历中，也增加了数值是否溢出的检查以及 <code>GetNextSectionPtrSafe</code> 的调用。</p>
+<p>根据以上总结，修复后的代码增加了对可变字段长度数值的系统性检查，即 <code>GetNextSectionPtrSafe</code> 函数。但是有一点要注意，这并不表示未修复的代码中完全不包含相关检查内容，实际上部分段在未修复之前也有同样的检查内容，只不过分散在各个函数中，我并没有对这部分内容进行整理。</p>
+<p><em>注：一开始我并没有注意到未修复的代码中包含此类检查，是在下面尝试触发漏洞的时候发现的，因此在下面尝试触发漏洞时，走了一些弯路。</em></p>
+<hr>
+<p><strong>3.3 小节发现问题后的补充内容：</strong></p>
+<p>主要关注的位置还是应该在 <code>CQmPacket::CQmPacket</code> 函数，在对未公开段进行索引时，并没有对计算得到的下个段位置进行检查验证，以下为部分截图（有多个段的处理没有写入单独的函数，而是将代码直接放在 <code>CQmPacket::CQmPacket</code> 中，其中包含公开段和未公开段，其中部分缺少相应检查，这里只截图了第一个）：</p>
+<p><img src="/img/2023-05-16-14-42-41.png" alt=""></p>
+<p>修复后代码如下：</p>
+<p><img src="/img/2023-05-16-14-41-02.png" alt=""></p>
+<h2 id="3-漏洞触发">3. 漏洞触发</h2>
+<h3 id="31-首次尝试">3.1 首次尝试</h3>
+<p><em>注：首次尝试是基于我的错误理解上的。</em></p>
+<p>在 1.3 小节 段结构中，我们知道当段中可变字段的长度不固定时，存在 Flags 字段标明是否存在某个可变字段，同时存在字段标明了可变字段的长度，关键问题就在这里，段中的所有字段都是从客户端发过来的，也就是攻击者可控的，<code>CQmPacket::CQmPacket</code> 在对 UserMessage 进行遍历时，会根据攻击者可控字段计算下一段的位置。</p>
+<p>而根据上面补丁对比得到的信息，我们知道在未修复之前的代码中，并没有对和可变字段长度有关的字段进行有效检查（<em>实际上部分段是有检查的</em>），也就是说修改类型一的段结构中可变字段长度字段，可能会触发漏洞。</p>
+<p>在微软官方文档中，提供了一个MSMQ 数据包示例【2】，我们可以直接利用该数据包，修改其中 SecurityHeader 中可变字段长度字段的数值。</p>
+<p><em>注：因为 UserHeader 结构比较复杂，SecurityHeader 是之后第一个出现的符合要求的段结构，因此一开始选择了它</em></p>
+<p>首先在目标虚拟机（系统版本：Windows 10 专业版 19044.2364）中安装 Microsoft 消息队列服务器，安装后可以看到正在运行的 MSMQ 服务：</p>
+<p><img src="/img/2023-05-12-15-22-32.png" alt=""></p>
+<p>并且在监听 1801 端口：</p>
+<p><img src="/img/2023-05-12-15-23-57.png" alt=""></p>
+<p>直接根据官方文档发送原始的 Establish Connectiong Request 和 Connection Parameters Request，并修改 User Message 中 SecurityHeader 中的 SenderIdSize。</p>
+<p>SenderIdSize 字段一共两个字节，我尝试测试了一些数值，结果没有引起 mqsvc.exe 进程的崩溃，因此需要进一步分析 <code>CQmPacket::CQmPacket</code> 函数后面的行为，确认篡改的可变字段长度数值对后面的代码有什么影响。</p>
+<p><em>注：我测试了小于实际的数值，大于实际的数值，以及负数。但实际上 SecurityHeader 是有对可变字段长度数值进行检查的，它检查了数值是否为负数，加法是否会溢出，以及计算得到的下个段地址是否超出了数据包的前后范围。因此修改 SecurityHeader 中可变字段长度数值只会让计算得到的下个段地址在数据包范围内变动，这种情况下由于下个段的位置不对，错误的数据更大概率会导致系统识别到问题进行错误处理，而不是触发漏洞崩溃。</em></p>
+<h3 id="32-cqmpacketcqmpacket-详细分析">3.2 <code>CQmPacket::CQmPacket</code> 详细分析</h3>
+<p>前面提到过，<code>CQmPacket::CQmPacket</code> 函数就是在对 UserMessage 做遍历，其中有一些字段名没有直接在 symbol 中进行注明，经过进一步和文档中的段结构进行对比，我又在 IDA 的代码中发现了几个未在 symbol 注明，但文档中有提及的段结构，但是仍旧有部分段结构没有确定名称，但是这并不影响对漏洞的分析。</p>
+<p>经过注释后的 <code>CQmPacket::CQmPacket</code> 函数如下：</p>
+<p><img src="/img/2023-05-12-18-40-19.png" alt=""></p>
+<p><img src="/img/2023-05-15-15-39-18.png" alt=""></p>
+<p>为了显示完整，后面对于段的具体操作我都进行了折叠，但是逻辑和上面两个没有折叠的代码是相同的，只是由于段结构的不同，具体细节可能有差异。是否对段进行处理基本上都是根据 BaseHeader 或者 UserHeader 中的标志位决定的，我在注释中也进行了标注。</p>
+<p>全部段遍历完之后，函数最后通过对参数进行检查，符合条件的情况下会再次构造 ExtensionHeader、SubqueueHeader、ExtendedAddressHeader。这里的功能我不太确定，但是不影响漏洞的触发。</p>
+<h3 id="33-如何触发">3.3 如何触发</h3>
+<p>分析到这里我才发现了自己的问题，漏洞的真正位置在 <code>CQmPacket::CQmPacket</code> 函数的段处理中，我选择下图中的段作为漏洞触发目标，这是第二个存在问题的段，它的结构比较简单，不像第一个段需要计算两次位置信息，接下来使用 TargetSection 引用该段：</p>
+<p><img src="/img/2023-05-16-15-08-41.png" alt=""></p>
+<p>在 3.2 小节的第二张截图中，我们可以看到 <code>CQmPacket::CQmPacket</code> 函数在遍历完所有段之后，尝试构造一个 ExtensionHeader，在构造时未经任何检查使用了语句 <code>*nxtSec = 12i64;</code>。</p>
+<p>如果执行流程可以到达 TargetSection 的处理逻辑，就可以控制 nxtSec 的数值，实现任意地址写入固定数值（实际上并不是任意地址，而是受到可变字段长度数值可表示的数值范围影响）。</p>
+<p>整个漏洞触发逻辑是这样的：</p>
+<ol>
+<li>修改 UserHeader 中标志位，使其满足 <code>(userHeaderFlag &amp; 0x4000000) != 0</code>;</li>
+<li>在数据包最后构造 TargetSection，使其处理逻辑中 nxtSec 的计算可以得到目标写入地址，这里为了触发漏洞，可以设计一个非法地址；</li>
+<li>修改数据包中其他字段，使数据包合法（例如数据包总长度之类的字段）。</li>
+</ol>
+<p>最终构造数据包如下：</p>
+<pre tabindex="0"><code>10 00 03 00 4C 49 4F 52 00 01 00 00 FF FF FF FF
+D1 58 73 55 50 91 95 95 49 97 B6 E6 11 EA 26 C6
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+FF FF FF FF 4C 49 4F 52 EE 08 00 00 00 1C 28 04
+1A 00 4F 00 53 00 3A 00 61 00 30 00 34 00 62 00
+6D 00 30 00 32 00 5C 00 71 00 00 00 01 00 1C 00
+00 00 00 00 00 00 00 00 00 00 00 00 01 05 00 00
+00 00 00 05 15 00 00 00 AD 4A 9E BD 36 D9 FA 3D
+63 A6 56 DA E8 03 00 00 0F 0F 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+08 00 00 00 00 00 00 00 12 00 00 00 12 00 00 00
+00 00 00 00 04 80 00 00 01 68 00 00 00 00 00 00
+6D 00 71 00 73 00 65 00 6E 00 64 00 65 00 72 00
+20 00 6C 00 61 00 62 00 65 00 6C 00 00 00 61 00
+61 00 61 00 61 00 61 00 61 00 61 00 61 00 61 00
+11 11 11 11 00 00 00 40 00 00 00 40 00 00 00 00
+</code></pre><p>当系统执行到 <code>*nxtSec = 12i64;</code> 这条语句时，可以在调试器中看到：</p>
+<pre tabindex="0"><code>2: kd&gt; p
+MQQM!CQmPacket::CQmPacket+0x90a:
+0033:00007ffd`d37688aa 48c7030c000000  mov     qword ptr [rbx],0Ch
+2: kd&gt; dd rbx
+DBGHELP: SharedUserData - virtual symbol module
+00000115`f7f50520  ???????? ???????? ???????? ????????
+00000115`f7f50530  ???????? ???????? ???????? ????????
+00000115`f7f50540  ???????? ???????? ???????? ????????
+00000115`f7f50550  ???????? ???????? ???????? ????????
+00000115`f7f50560  ???????? ???????? ???????? ????????
+00000115`f7f50570  ???????? ???????? ???????? ????????
+00000115`f7f50580  ???????? ???????? ???????? ????????
+00000115`f7f50590  ???????? ???????? ???????? ????????
+</code></pre><p>继续执行会导致 mqsvc.exe 进程崩溃：</p>
+<p><img src="/img/2023-05-16-17-00-24.png" alt=""></p>
+<h3 id="34-数据包详细解释">3.4 数据包详细解释</h3>
+<p>数据包格式和官方文档相同，包括 BaseHeader、UserHeader、SecurityHeader 和 MessagePropertiesHeader，具体修改字段如下（<code>--</code> 表示没有修改）：</p>
+<ul>
+<li>
+<p>BaseHeader:</p>
+<p><code>-- -- -- -- -- -- -- -- 00 01 00 00 FF FF FF FF</code>
+修改 PacketSize 为 <code>0x00000100</code>，修改 TimeToReachQueue 为 <code>0xFFFFFFFF</code>。
+其中 PacketSize 为总数据包大小，需要四字节对齐，如果一开始构造的数据包不符合要求，后面补零即可。
+TimeToReachQueue 表示数据包必须要在这个时间范围内到达目标 QM，0xFFFFFFFF 表示无限时间，这里修改只是为了确保数据包不会被丢掉；</p>
+</li>
+<li>
+<p>UserHeader:</p>
+<pre tabindex="0"><code> -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 04
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+</code></pre><p>修改了标志位中最后一个字节，为了满足条件 <code>(userHeaderFlag &amp; 0x4000000) != 0</code>；</p>
+</li>
+<li>
+<p>SecurityHeader 没有变化；</p>
+</li>
+<li>
+<p>MessagePropertiesHeader 进行了大幅度的删减，并减小了对应的字段长度数值，和漏洞无关，只是为了让数据包简洁一点；</p>
+</li>
+<li>
+<p>TargetSection:
+<code>11 11 11 11 00 00 00 40 00 00 00 40</code>
+前四个字节没有作用，可以设置任意数值。涉及到 nxtSec 计算的是后面的两个四字节数据：</p>
+<pre tabindex="0"><code>nxtSec = (char *)nxtSec + ((*((_DWORD *)nxtSec + 2) + 15 + *((_DWORD *)nxtSec + 1)) &amp; 0xFFFFFFFC);
+</code></pre><p>为了能够触发漏洞，我选择了一个大的负数 0x80000000，让这两个四字节数据分别等于 0x40000000，最后计算得到的地址不可访问。</p>
+</li>
+</ul>
+<h2 id="4-漏洞总结">4. 漏洞总结</h2>
+<p>MSMQ 服务的 UserMessage 数据包由多个段组成，段结构具有不同类型，其中一部分段中包含长度可变的字段，并且使用单独字段说明可变字段的长度，这样在获取下个段位置时，会使用这个单独字段进行计算。</p>
+<p>MSMQ 服务器在处理 UserMessage 数据包时，使用 <code>CQmPacket::CQmPacket</code> 函数对数据包中的各个段进行线性遍历，部分段存在官方文档并在 symbol 中存在单独的函数，部分段只在官方文档中进行了介绍或者完全未公开，这部分段没有单独的函数，代码直接写在 <code>CQmPacket::CQmPacket</code> 函数中。</p>
+<p>可能是因为未完全公开的缘故，开发人员在处理这部分段时，并没有对数据包中的数据进行严谨的判断，导致获取下个段位置时，计算得到的段位置可能超出了数据包所在内存范围，导致了内存越界写入。</p>
+<p>为了方便后续功能扩展，修复后的代码增加了字段检查接口函数，并在每个需要检查的位置添加了该函数的调用。</p>
+<h2 id="5-总结">5. 总结</h2>
+<p>该漏洞的难点主要在 MSMQ 服务本身，网上的资料只有官方文档，通过 Wireshark 抓包无法解析出数据包结构，因此只能通过文档中的资料恢复数据包中的内容以及 IDA 中的数据结构。</p>
+<p>在漏洞分析过程中，由于补丁对比得到的修复位置很多，增加的代码不仅是为了修复漏洞，也是为了支持后续功能，我对漏洞原理的判断产生了一些误差，因此花费了更多的时间进行调试。</p>
+<p>目前分析到的代码显示该漏洞只能实现一定地址范围内的写固定值操作，如果想要实现漏洞利用，还需要分析后续代码功能，构造更加精细的数据包，实现内存的任意写。</p>
+<h2 id="6-参考链接">6. 参考链接</h2>
+<ol>
+<li><a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mqqb/85498b96-f2c8-43b3-a108-c9d6269dc4af">[MS-MQQB]: Message Queuing (MSMQ): Message Queuing Binary Protocol</a></li>
+<li><a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mqqb/f0bf84a8-aba5-4ce9-a6ec-31ad9ca90d00">4.1.7 FRAME 7: User Message</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/cve/" rel="tag">cve</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/poc/" rel="tag">poc</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+<div class="authorbox clearfix">
+	<figure class="authorbox__avatar">
+		<img alt="zoemurmure avatar" src="/img/avatar.jpg" class="avatar" height="90" width="90">
+	</figure>
+	<div class="authorbox__header">
+		<span class="authorbox__name">About zoemurmure</span>
+	</div>
+	<div class="authorbox__description">
+		二进制安全研究菜鸟，微信公众号：逻辑门
+	</div>
+</div>
+
+<nav class="pager flex">
+	<div class="pager__item pager__item--prev">
+		<a class="pager__link" href="/posts/cve_2023_21768/" rel="prev">
+			<span class="pager__subtitle">«&thinsp;Previous</span>
+			<p class="pager__title">CVE-2023-21768 AFD for WinSock 提权漏洞利用思路探索</p>
+		</a>
+	</div>
+</nav>
+
+
+
+
+<section class="comments">
+<script src="https://utteranc.es/client.js"
+	repo="zoemurmure/zoemurmure.github.io"
+	issue-term="pathname"
+	theme="github-light"
+	crossorigin="anonymous"
+	async>
+</script>
+</section>
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2023 Logic Security 逻辑门.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+<script src="/js/custom.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.6/MathJax.js?config=TeX-AMS-MML_HTMLorMML" async></script>
+</body>
+</html>

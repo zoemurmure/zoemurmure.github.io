@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>poc on Logic Security 逻辑门</title>
+    <link>https://www.zoemurmure.top/tags/poc/</link>
+    <description>Recent content in poc on Logic Security 逻辑门</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh</language>
+    <lastBuildDate>Wed, 17 May 2023 17:14:55 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/poc/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>[CVE-2023-21554] Windows Message Queuing 远程代码执行漏洞分析</title>
+      <link>https://www.zoemurmure.top/posts/cve_2023_21554/</link>
+      <pubDate>Wed, 17 May 2023 17:14:55 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/cve_2023_21554/</guid>
+      <description>0. 前言 这篇文章介绍了 CVE-2023-21554 漏洞，该漏洞存在于微软的消息队列 (MSMQ) 服务中，由于该服务没有正确对数据包中的数据进行验证，攻击者利用该漏洞可以实现远程命令</description>
+    </item>
+    
+  </channel>
+</rss>
