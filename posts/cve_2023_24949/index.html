@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[CVE-2023-24949] Windows 内核提权漏洞分析 - Logic Security 逻辑门</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="CVE-2023-24949 Windows 内核提权漏洞分析">
+		<meta property="og:title" content="[CVE-2023-24949] Windows 内核提权漏洞分析" />
+<meta property="og:description" content="CVE-2023-24949 Windows 内核提权漏洞分析" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://www.zoemurmure.top/posts/cve_2023_24949/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2023-06-12T16:57:51+08:00" />
+<meta property="article:modified_time" content="2023-06-12T16:57:51+08:00" />
+
+		<meta itemprop="name" content="[CVE-2023-24949] Windows 内核提权漏洞分析">
+<meta itemprop="description" content="CVE-2023-24949 Windows 内核提权漏洞分析"><meta itemprop="datePublished" content="2023-06-12T16:57:51+08:00" />
+<meta itemprop="dateModified" content="2023-06-12T16:57:51+08:00" />
+<meta itemprop="wordCount" content="5274">
+<meta itemprop="keywords" content="cve,binary,poc," />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	<link rel="stylesheet" href="/css/custom.css">
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security 逻辑门" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security 逻辑门</div>
+					<div class="logo__tagline">欢迎关注同名微信公众号：逻辑门(*^_^*)</div>
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/history/">
+				
+				<span class="menu__text">历史文章</span>
+				
+			</a>
+		</li>
+	</ul>
+</nav>
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[CVE-2023-24949] Windows 内核提权漏洞分析</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-06-12T16:57:51&#43;08:00">2023-06-12</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    <span class="post-date">共5274字</span>，阅读约<span class="more-meta"> 11 分钟</span>
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" rel="category">漏洞分析</a>
+	</span>
+</div></div>
+		</header>
+		
+<div class="post__toc toc">
+	<div class="toc__title">Page content</div>
+	<div class="toc__menu">
+		<nav id="TableOfContents">
+  <ul>
+    <li><a href="#0-前言">0. 前言</a></li>
+    <li><a href="#1-补丁对比">1. 补丁对比</a></li>
+    <li><a href="#2-函数功能分析">2. 函数功能分析</a>
+      <ul>
+        <li><a href="#21-初步的尝试">2.1 初步的尝试</a></li>
+        <li><a href="#22-相关知识点介绍">2.2 相关知识点介绍</a></li>
+        <li><a href="#23-dvrt-相关数据结构">2.3 DVRT 相关数据结构</a></li>
+        <li><a href="#24-小结">2.4 小结</a></li>
+      </ul>
+    </li>
+    <li><a href="#3-漏洞触发">3. 漏洞触发</a>
+      <ul>
+        <li><a href="#31-确定方向">3.1 确定方向</a></li>
+        <li><a href="#32-定位-dvrt">3.2 定位 DVRT</a></li>
+        <li><a href="#33-分析触发条件--尝试触发漏洞">3.3 分析触发条件 &amp; 尝试触发漏洞</a></li>
+      </ul>
+    </li>
+    <li><a href="#4-总结">4. 总结</a></li>
+    <li><a href="#5-参考资料">5. 参考资料</a></li>
+  </ul>
+</nav>
+	</div>
+</div><div class="content post__content clearfix">
+			<h2 id="0-前言">0. 前言</h2>
+<p>这篇文章介绍了 CVE-2023-24949 漏洞，该漏洞英文全称是 “Windows Kernel Elevation of Privilege Vulnerability”，由此判断漏洞位于 ntoskrnl.exe 中。根据官方说明，攻击者利用该漏洞可以实现本地提权。</p>
+<p>本文按照个人的分析流程对漏洞进行了介绍，通过补丁对比、功能分析以及函数调试确定了漏洞原理以及漏洞的触发方法，并成功对漏洞进行触发，最后进行了简单的总结。</p>
+<h2 id="1-补丁对比">1. 补丁对比</h2>
+<p>检查补丁修复前后的 ntoskrnl.exe，发现一共修改了三个函数。</p>
+<p><img src="/img/2023-05-18-11-12-48.png" alt=""></p>
+<p>其中</p>
+<p><code>IoInitSystemPreDrivers</code> 调整了部分代码结构，减少了条件语句的嵌套，同时将部分代码整合成了新的函数，没有功能性变化；</p>
+<p><code>PopTransitionSystemPowerStateEx</code> 同样未发现功能性变化；</p>
+<p>问题出现在 <code>MiCaptureRetpolineRelocationTables</code> 函数：</p>
+<p><em>注：为了方便理解，我在这里直接贴出进行完函数功能分析后，已经整理了变量名和数据结构的函数版本。</em></p>
+<p><img src="/img/2023-06-08-14-44-26.png" alt=""></p>
+<p>注意黄框圈起的位置就是补丁修复位置，在补丁修复之前，首先进行三个数的相加，然后通过检查加法结果是否大于其中一个加数来判断是否溢出。补丁修复后，三个数相加的操作被分成两步进行，每次的加法操作都通过调用 <code>RtlULongAdd</code> 实现，该函数有一个检查加法结果是否大于被加数的操作：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>NTSTATUS <span style="color:#66d9ef">__stdcall</span> <span style="color:#a6e22e">RtlULongAdd</span>(ULONG ulAugend, ULONG ulAddend, ULONG <span style="color:#f92672">*</span>pulResult)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  ULONG v3; <span style="color:#75715e">// eax
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  ULONG result; <span style="color:#75715e">// edx
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  NTSTATUS status; <span style="color:#75715e">// eax
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>  v3 <span style="color:#f92672">=</span> ulAugend <span style="color:#f92672">+</span> ulAddend;
+</span></span><span style="display:flex;"><span>  result <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( v3 <span style="color:#f92672">&gt;=</span> ulAugend )
+</span></span><span style="display:flex;"><span>    result <span style="color:#f92672">=</span> v3;
+</span></span><span style="display:flex;"><span>  status <span style="color:#f92672">=</span> v3 <span style="color:#f92672">&lt;</span> ulAugend <span style="color:#f92672">?</span> <span style="color:#ae81ff">0xC0000095</span> <span style="color:#f92672">:</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">*</span>pulResult <span style="color:#f92672">=</span> result;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> status;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>由此可以看出这其实是一个整数溢出问题，在补丁修复之前，只检查了加数 <code>imageDynamicRelocationRva</code> 和其他两个数相加之后是否溢出，但是没有检查加数 <code>baseRelocSize</code> 和 加数 <code>12</code> 相加后是否溢出。</p>
+<p>注意截图中的绿框，在后续代码中使用了 <code>baseRelocSize + 12</code> 作为空间分配和数据复制的大小参数。在截图中无法看出，进行加法操作的三个加数原本都是四字节数据，加法的结果也是四字节数据，但是在 64 位系统上，实际上存储这些数据的寄存器是 64 位的，而进行空间分配的 <code>MiAllocatePool</code> 函数和进行数据复制的 <code>memmove</code> 函数，表示数据大小的参数是 <code>size_t</code> 类型，在 64 位系统上同样表示 64 位数据。因此，如果表示数据大小的参数 <code>baseRelocSize + 12</code> 发生溢出，就可以绕过上方的 <code>curRetRelocRva &gt; endOfTable</code> 检查，从而在 <code>memmove</code> 函数中访问到远超出合法数据范围数据。</p>
+<h2 id="2-函数功能分析">2. 函数功能分析</h2>
+<p>上面的截图已经对变量进行了重命名，并且导入了相关数据结构，但在分析之初，所有变量名都还是 <code>v*</code> 的格式，完全看不出函数功能，因此在进行了补丁分析之后，我首先对函数功能进行了分析。</p>
+<h3 id="21-初步的尝试">2.1 初步的尝试</h3>
+<p>从函数名来看，这个函数和 Retpoline 有关，Retpline 是用于解决 Spectre 漏洞变体的一种机制。同时根据函数引用，<code>MiParseImageLoadConfig</code> 函数对其进行了调用，看起来好像和可执行文件的加载有关，但是不确定。</p>
+<p>我对这两类漏洞有一些浅薄的认识，但是不知道 Retpoline 和可执行文件加载有什么关系，于是开始了一些漫无目的的搜索。</p>
+<p>在对 Retpoline、relocation table 等关键词进行搜索时，我发现了 Dynamic Value Relocation Table(DVRT) 的介绍【1】，及其链接的 Load Configuration Directory 的相关文档【2】，事情一下子变得清晰了起来。</p>
+<h3 id="22-相关知识点介绍">2.2 相关知识点介绍</h3>
+<p>Spectre 是和计算机硬件相关的一种漏洞，利用了 CPU 的分支预测机制实现敏感数据的泄露。Retpoline 就是谷歌为了解决该问题开发的一种 CPU 补丁机制。</p>
+<p>在原有的 CPU 分支预测机制中，CPU 会根据之前执行的指令预测分支跳转的目的地址并提前进行预处理，但是攻击者可以通过构造特定的代码序列促使 CPU 猜错分支，从而获取受保护的数据。</p>
+<p>Retpoline 机制采用一种类似于 jump table 的模式，将分支跳转操作转换为一个间接的非分支跳转，从而避免了 CPU 分支预测机制的使用。</p>
+<p>Retpoline 的转换是在将内核模块加载到内存时临时执行的，但是操作系统是怎么知道在哪里进行转换呢？答案是所有的信息都保存在 Dynamic Value Relocation Table(DVRT) 中，可以通过二进制文件的 load config 目录获得。</p>
+<p>DVRT 会在编译阶段放入二进制文件中，编译器会把所有和间接跳转/调用有关的元数据保存到文件的 .reloc 段。当文件运行时，内核会对 DVRT 数据进行解析，并对保存的所有分支跳转进行转换。</p>
+<h3 id="23-dvrt-相关数据结构">2.3 DVRT 相关数据结构</h3>
+<p>首先是 DVRT 本身的格式，我只列出了两个数据结构，因为这两个数据结构可以导入 IDA，有助于对漏洞函数的分析：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">// DVRT 头部
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">ImageDynamicRelocationTable</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">uint32_t</span> version;   <span style="color:#75715e">// 目前只有一个版本 1
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">uint32_t</span> size;      <span style="color:#75715e">// 头部后面的 retpoline 信息数据大小
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 根据不同类型的 retpoline 类型，每块的起始部位有一个头部
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">ImageDynamicRelocation</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">uint64_t</span> symbol;          <span style="color:#75715e">// 表示 retpoline 类型，可选数值为 3，4，5
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">uint32_t</span> baseRelocSize;   <span style="color:#75715e">// 头部后面的该类型 retpoline 信息数据大小
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>};
+</span></span></code></pre></div><p>然后是 <code>_IMAGE_LOAD_CONFIG_DIRECTORY64</code> 结构，该结构可以用来对 DVRT 进行定位，同样可以导入 IDA，后面在使用到该数据结构的时候，会对相关字段进行说明：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">_IMAGE_LOAD_CONFIG_CODE_INTEGRITY</span> {
+</span></span><span style="display:flex;"><span>   WORD Flags;           
+</span></span><span style="display:flex;"><span>   WORD Catalog;         
+</span></span><span style="display:flex;"><span>   DWORD CatalogOffset;  
+</span></span><span style="display:flex;"><span>   DWORD Reserved;       
+</span></span><span style="display:flex;"><span>};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">_IMAGE_LOAD_CONFIG_DIRECTORY64</span> {
+</span></span><span style="display:flex;"><span>   DWORD Size;           
+</span></span><span style="display:flex;"><span>   DWORD TimeDateStamp; 
+</span></span><span style="display:flex;"><span>   WORD MajorVersion;    
+</span></span><span style="display:flex;"><span>   WORD MinorVersion;    
+</span></span><span style="display:flex;"><span>   DWORD GlobalFlagsClear;
+</span></span><span style="display:flex;"><span>   DWORD GlobalFlagsSet;   
+</span></span><span style="display:flex;"><span>   DWORD CriticalSectionDefaultTimeout; 
+</span></span><span style="display:flex;"><span>   ULONGLONG DeCommitFreeBlockThreshold; 
+</span></span><span style="display:flex;"><span>   ULONGLONG DeCommitTotalFreeThreshold;
+</span></span><span style="display:flex;"><span>   ULONGLONG LockPrefixTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG MaximumAllocationSize;
+</span></span><span style="display:flex;"><span>   ULONGLONG VirtualMemoryThreshold; 
+</span></span><span style="display:flex;"><span>   ULONGLONG ProcessAffinityMask;
+</span></span><span style="display:flex;"><span>   DWORD ProcessHeapFlags; 
+</span></span><span style="display:flex;"><span>   WORD CSDVersion;     
+</span></span><span style="display:flex;"><span>   WORD DependentLoadFlags;
+</span></span><span style="display:flex;"><span>   ULONGLONG EditList;        
+</span></span><span style="display:flex;"><span>   ULONGLONG SecurityCookie;  
+</span></span><span style="display:flex;"><span>   ULONGLONG SEHandlerTable;   
+</span></span><span style="display:flex;"><span>   ULONGLONG SEHandlerCount;   
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardCFCheckFunctionPointer; 
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardCFDispatchFunctionPointer;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardCFFunctionTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardCFFunctionCount;
+</span></span><span style="display:flex;"><span>   DWORD GuardFlags;     
+</span></span><span style="display:flex;"><span>   _IMAGE_LOAD_CONFIG_CODE_INTEGRITY CodeIntegrity;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardAddressTakenIatEntryTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardAddressTakenIatEntryCount;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardLongJumpTargetTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardLongJumpTargetCount;
+</span></span><span style="display:flex;"><span>   ULONGLONG DynamicValueRelocTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG CHPEMetadataPointer;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardRFFailureRoutine;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardRFFailureRoutineFunctionPointer;
+</span></span><span style="display:flex;"><span>   DWORD DynamicValueRelocTableOffset;
+</span></span><span style="display:flex;"><span>   WORD DynamicValueRelocTableSection;
+</span></span><span style="display:flex;"><span>   WORD Reserved2;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardRFVerifyStackPointerFunctionPointer;
+</span></span><span style="display:flex;"><span>   DWORD HotPatchTableOffset;
+</span></span><span style="display:flex;"><span>   DWORD Reserved3;
+</span></span><span style="display:flex;"><span>   ULONGLONG EnclaveConfigurationPointer;
+</span></span><span style="display:flex;"><span>   ULONGLONG VolatileMetadataPointer;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardEHContinuationTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardEHContinuationCount;
+</span></span><span style="display:flex;"><span>};
+</span></span></code></pre></div><h3 id="24-小结">2.4 小结</h3>
+<p>根据以上信息，可以确定漏洞函数用于在 load config 阶段获取 DVRT，同时根据其调用者，以及调用之前执行的其他函数参数，就可以确定漏洞函数中大部分变量的类型及功能，最终得到文章开头截图中的函数状态。</p>
+<h2 id="3-漏洞触发">3. 漏洞触发</h2>
+<h3 id="31-确定方向">3.1 确定方向</h3>
+<p>想要触发漏洞，首先需要知道怎样到达漏洞函数。在查看 <code>MiCaptureRetpolineRelocationTables</code> 函数的引用情况时，有两个函数对该函数进行了调用：</p>
+<p><img src="/img/2023-05-19-17-52-56.png" alt=""></p>
+<p>ChatGPT 对这两个函数的解释如下：</p>
+<blockquote>
+<p>MiParseImageLoadConfig 是 Windows 操作系统 NT 内核中的一个函数，用于解析可执行文件的加载配置信息。在 Windows 中，可执行文件通常包含有加载配置信息，这些信息用于指示操作系统如何将该文件加载到内存中，并且如何初始化其中的数据和代码。
+MiParseImageLoadConfig 函数主要是在内核模块加载过程中使用的，它会从可执行文件中读取加载配置信息，并且根据这些信息对内存进行合适的分配和初始化。具体来说，MiParseImageLoadConfig 函数可以完成以下几个任务：</p>
+<ol>
+<li>解析可执行文件中的加载配置信息，包括基址、大小、校验和等。</li>
+<li>根据加载配置信息计算出需要分配的内存大小和位置，并且分配相应的虚拟内存区域。</li>
+<li>将可执行文件中的代码、数据等部分复制到分配的内存区域中，并且完成必要的重定位和初始化工作。</li>
+</ol>
+<p>需要注意的是，MiParseImageLoadConfig 函数是 Windows 内核中的一个底层函数，通常不会直接被应用程序调用。它主要是由其他内核模块相关的函数来调用，以完成可执行文件的加载和初始化工作。</p>
+<p>MiCaptureBootDriverRetpolineInfo 是 Windows 操作系统 NT 内核中的一个函数，用于捕获引导驱动程序的 Retpoline 信息。在 Windows 中，Retpoline 是一种特殊的代码转换技术，用于缓解 Spectre 及类似的 CPU 漏洞所导致的安全风险。
+具体来说，当一个驱动程序被加载到内存中时，MiCaptureBootDriverRetpolineInfo 函数会扫描它的代码段，并且为其中包含的 Retpoline 调用生成相应的跳转目标地址表。这个跳转目标地址表可以用于替代原本的 Retpoline 跳转，从而提高代码的执行效率和安全性。
+需要注意的是，MiCaptureBootDriverRetpolineInfo 函数只会在引导过程中被调用，它主要是用于捕获引导驱动程序的 Retpoline 信息，以便在后续的操作中使用。其他驱动程序的 Retpoline 信息则会在加载时进行捕获和处理。</p>
+</blockquote>
+<p>看起来一个函数是在可执行文件加载的时候被调用，一个是在系统引导的过程中被调用，显然前者比较好分析。</p>
+<p>虽然是这么想的，但是我并不确定上面信息的准确度，同时也不知道自己理解的是不是正确，因此我对这两个函数分别下了断点，尝试操作系统看看会不会发生中断。</p>
+<p>之后我发现，在 Explorer 中对文件进行浏览时，可以轻易的多次中断在 <code>MiParseImageLoadConfig</code> 函数上，但是并没有出现 <code>MiCaptureBootDriverRetpolineInfo</code> 中断的情况，因此选择 <code>MiParseImageLoadConfig</code> 这条调用线作为分析对象。</p>
+<h3 id="32-定位-dvrt">3.2 定位 DVRT</h3>
+<p>目前并没有公开文档说明包含 DVRT 信息的 PE 文件结构，而且在上面测试系统是否中断时，我也尝试在漏洞函数上下了断点，但是并没有发生中断在漏洞函数的情况，因此我没有办法通过分析已有文件确定 DVRT 信息的位置。</p>
+<p><em>注：后来我发现其实在系统文件夹还是比较容易能够中断在漏洞函数的，但是因为文件太多，不确定到底是哪个文件包含 DVRT 信息。</em></p>
+<p>一开始我尝试直接使用 VS 的功能，让编译后的程序具有 DVRT，但是没有成功，不确定 VS 是否具有相关功能，因此我决定任意创建一个程序，然后使用十六进制编辑器直接修改文件内容，使系统在处理该文件时能够到达漏洞所在位置。</p>
+<p>使用 visual studio 创建一个 Empty Project(C++)，程序内容任意，我只写了一个空的 main 函数，编译生成 exe 文件。</p>
+<p>先使用该文件进行测试，看系统代码能够执行到哪里。在 <code>MiCaptureRetpolineRelocationTables</code> 函数设置断点，系统不会发生中断，但是如果在 <code>MiParseImageLoadConfig</code> 设置断点，系统会发生多次中断，无法判断哪次中断是测试文件导致的。</p>
+<p>通过查看 IDA，发现系统在调用 <code>MiCaptureRetpolineRelocationTables</code> 之前，首先调用了 <code>MiCaptureDynamicRelocationTableRva</code> 函数，如果该函数执行成功，才会继续往下执行，因此我在该函数的调用位置设置断点，并且将测试文件单独放在一个文件夹中，在使用资源管理器打开该文件夹时，系统中断在了 <code>MiCaptureDynamicRelocationTableRva</code> 函数的调用处，说明这个正常生成的测试文件至少是可以执行到 <code>MiCaptureDynamicRelocationTableRva</code> 函数的。</p>
+<p><code>MiCaptureDynamicRelocationTableRva</code> 函数定义如下：</p>
+<p><img src="/img/2023-06-09-11-52-13.png" alt=""></p>
+<p><em>注：configDirec 这个变量的类型是我根据函数功能以及和 DVRT 有关的数据结构进行的猜测，设置后发现 <code>_IMAGE_LOAD_CONFIG_DIRECTORY64</code> 类型确实能够满足函数功能。</em></p>
+<p>注意图片中的注释信息，为了让这个函数执行成功，我们需要让 <code>DynamicValueRelocTableSection</code> 这个字段的数值不为 0。</p>
+<p>但是如何确定 <code>DynamicValueRelocTableSection</code> 在文件中的位置呢？可以使用 VS 提供的 dumpbin.exe 工具，输出结果如下：</p>
+<pre tabindex="0"><code>PS C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.35.32215\bin\Hostx64\x86&gt; ./dumpbin.exe /loadconfig 【手动马赛克文件路径】
+Microsoft (R) COFF/PE Dumper Version 14.35.32216.1
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file 【手动马赛克文件路径】
+
+File Type: EXECUTABLE IMAGE
+
+  Section contains the following load config:
+
+            00000140 size
+                   0 time date stamp
+                0.00 Version
+                   0 GlobalFlags Clear
+                   0 GlobalFlags Set
+                   0 Critical Section Default Timeout
+                   0 Decommit Free Block Threshold
+                   0 Decommit Total Free Threshold
+    0000000000000000 Lock Prefix Table
+                   0 Maximum Allocation Size
+                   0 Virtual Memory Threshold
+                   0 Process Affinity Mask
+                   0 Process Heap Flags
+                   0 CSD Version
+                0000 Dependent Load Flag
+    0000000000000000 Edit List
+    0000000140003008 Security Cookie
+    0000000140002190 Guard CF address of check-function pointer
+    00000001400021A0 Guard CF address of dispatch-function pointer
+    0000000000000000 Guard CF function table
+                   0 Guard CF function count
+            00000100 Guard Flags
+                       CF instrumented
+                0000 Code Integrity Flags
+                0000 Code Integrity Catalog
+            00000000 Code Integrity Catalog Offset
+            00000000 Code Integrity Reserved
+    0000000000000000 Guard CF address taken IAT entry table
+                   0 Guard CF address taken IAT entry count
+    0000000000000000 Guard CF long jump target table
+                   0 Guard CF long jump target count
+    0000000000000000 Dynamic value relocation table
+    0000000000000000 Hybrid metadata pointer
+    0000000000000000 Guard RF address of failure-function
+    0000000000000000 Guard RF address of failure-function pointer
+            00000000 Dynamic value relocation table offset
+                0000 Dynamic value relocation table section
+.....
+</code></pre><p>注意到文件中的 Dynamic value relocation table offset 和 Dynamic value relocation table section 都是 0，这里就是我们打算修改的内容。</p>
+<p>为了能够定位该内容在文件中的位置，可以搜索 <code>0000000140003008 Security Cookie</code> 这个字段，因为它的值比较特殊，不容易发生重复。最终定位到如下位置：</p>
+<p><img src="/img/2023-06-09-12-08-22.png" alt=""></p>
+<p>根据 <code>_IMAGE_LOAD_CONFIG_DIRECTORY64</code> 的结构确定红框中配置信息的起始位置，同时定位要修改的 DVRT 信息所在位置，其中前四个字节是 offset，后四个字节是 section。我们需要修改的是后四个字节，让其不等于0，同时因为这个二进制文件有 6 个 section，因此数值也不能大于 6。这里可以直接将这个数值修改成 1。</p>
+<p>修改后的文件还不能到达漏洞点，但是此时可以先调试确定一下相关变量的数值。结合上面的 <code>MiCaptureDynamicRelocationTableRva</code> 函数截图，当系统计算完 sectionHeader 之后，检查该数值发现定位到的是第一个 section header <code>.text</code></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">// sectionHeader
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>nt<span style="color:#f92672">!</span>MiCaptureDynamicRelocationTableRva<span style="color:#f92672">+</span><span style="color:#ae81ff">0xeb</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span><span style="color:#ae81ff">7e9249</span>f7 <span style="color:#ae81ff">493</span>bf8          cmp     rdi,r8
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">0</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> db r8
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090208  <span style="color:#ae81ff">2</span>e <span style="color:#ae81ff">74</span> <span style="color:#ae81ff">65</span> <span style="color:#ae81ff">78</span> <span style="color:#ae81ff">74</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">0</span>c <span style="color:#ae81ff">0</span>d <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">10</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  .text...........
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090218  <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">0</span>e <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  ................
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090228  <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">20</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">60</span><span style="color:#f92672">-</span><span style="color:#ae81ff">2</span>e <span style="color:#ae81ff">72</span> <span style="color:#ae81ff">64</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">74</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  .... ..<span style="color:#960050;background-color:#1e0010">`</span>.rdata..
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090238  b4 <span style="color:#ae81ff">0</span>e <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">20</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">00</span> <span style="color:#ae81ff">10</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">12</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  ..... ..........
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090248  <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">40</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">40</span>  ............<span style="color:#960050;background-color:#1e0010">@</span>..<span style="color:#960050;background-color:#1e0010">@</span>
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090258  <span style="color:#ae81ff">2</span>e <span style="color:#ae81ff">64</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">74</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">38</span> <span style="color:#ae81ff">06</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">30</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  .data..<span style="color:#ae81ff">.8</span>...<span style="color:#ae81ff">.0</span>..
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090268  <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">02</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">22</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  .....<span style="color:#e6db74">&#34;..........</span>
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090278  <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">40</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> c0<span style="color:#f92672">-</span><span style="color:#ae81ff">2</span>e <span style="color:#ae81ff">70</span> <span style="color:#ae81ff">64</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">74</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  ....<span style="color:#960050;background-color:#1e0010">@</span>....pdata..
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 计算得到的 DVRT RVA
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#ae81ff">0</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> p
+</span></span><span style="display:flex;"><span>nt<span style="color:#f92672">!</span>MiCaptureDynamicRelocationTableRva<span style="color:#f92672">+</span><span style="color:#ae81ff">0x100</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span><span style="color:#ae81ff">7e924</span>a0c <span style="color:#ae81ff">41890</span>e          mov     dword ptr [r14],ecx
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">0</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> r rcx
+</span></span><span style="display:flex;"><span>rcx<span style="color:#f92672">=</span><span style="color:#ae81ff">0000000000001000</span>
+</span></span></code></pre></div><p>继续向下执行可以进入 <code>MiCaptureRetpolineRelocationTables</code> 函数，根据上面计算得到的 RVA 数值得到的 DVRT 如下：</p>
+<pre tabindex="0"><code>0: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0x76:
+fffff805`7e9254de 4a8b043b        mov     rax,qword ptr [rbx+r15]
+0: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0x7a:
+fffff805`7e9254e2 4889442420      mov     qword ptr [rsp+20h],rax
+2: kd&gt; db rbx+r15
+fffff805`d4091000  b8 01 00 00 00 c3 cc cc-cc cc cc cc cc cc cc cc  ................
+fffff805`d4091010  cc cc cc cc cc cc 66 66-0f 1f 84 00 00 00 00 00  ......ff........
+fffff805`d4091020  48 3b 0d e1 1f 00 00 75-10 48 c1 c1 10 66 f7 c1  H;.....u.H...f..
+fffff805`d4091030  ff ff 75 01 c3 48 c1 c9-10 e9 aa 02 00 00 cc cc  ..u..H..........
+fffff805`d4091040  40 53 48 83 ec 20 b9 01-00 00 00 e8 be 0b 00 00  @SH.. ..........
+fffff805`d4091050  e8 db 06 00 00 8b c8 e8-e8 0b 00 00 e8 cb 06 00  ................
+fffff805`d4091060  00 8b d8 e8 0c 0c 00 00-b9 01 00 00 00 89 18 e8  ................
+fffff805`d4091070  44 04 00 00 84 c0 74 73-e8 37 09 00 00 48 8d 0d  D.....ts.7...H..
+</code></pre><p>在测试文件中搜索这段数据，定位发现这段数据就是 <code>.text</code> 段的起始内容：</p>
+<p><img src="/img/2023-06-09-15-19-34.png" alt=""></p>
+<p>根据上面对 DVRT 数据结构的介绍，我们知道，如果按照 DVRT 解析这段数据，这里保存的首先是 8 字节的 <code>ImageDynamicRelocationTable</code> 结构，然后是 12 字节的 <code>ImageDynamicRelocation</code> 结构。</p>
+<p>分析到这里，虽然我们不知道具有 DVRT 的 PE 文件究竟是什么结构，但是我们已经可以欺骗系统让它认为测试文件具有 DVRT，而且也知道了系统认为的 DVRT 在文件中的位置。</p>
+<h3 id="33-分析触发条件--尝试触发漏洞">3.3 分析触发条件 &amp; 尝试触发漏洞</h3>
+<p>我们看一下 <code>MiCaptureRetpolineRelocationTables</code> 函数的细节，确定 DVRT 需要满足的要求：</p>
+<p><img src="/img/2023-06-09-15-32-07.png" alt=""></p>
+<p>注意黄框圈起的部分，按照要求修改测试文件中的数据：</p>
+<p><img src="/img/2023-06-09-15-32-49.png" alt=""></p>
+<p>到这里测试文件应该是修改好了，重新测试的时候发现系统并没有崩溃，调试器提示信息：</p>
+<pre tabindex="0"><code>SXS: BasepCreateActCtx() NtCreateSection() failed. Status = 0xc000009a
+</code></pre><p>重新在 <code>MiCaptureRetpolineRelocationTables</code> 单步调试，发现当系统执行到三个数值的加法处时，确实发生了整数溢出：</p>
+<pre tabindex="0"><code>3: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0xfe:
+fffff805`7e925566 4503f4          add     r14d,r12d
+3: kd&gt; r r14d
+r14d=1014
+3: kd&gt; r r12d
+r12d=ffffffff
+3: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0x101:
+fffff805`7e925569 443bf2          cmp     r14d,edx
+3: kd&gt; r r14d
+r14d=1013
+</code></pre><p>但是当系统执行到 <code>MiAllocatePool</code> 函数时，空间分配失败了。仔细看一下这个函数的调用参数：</p>
+<pre tabindex="0"><code>3: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0x181:
+fffff805`7e9255e9 e832ddb1ff      call    nt!MiAllocatePool (fffff805`7e443320)
+3: kd&gt; r rcx
+rcx=0000000000000100
+3: kd&gt; r rdx
+rdx=000000010000000b
+</code></pre><p>rdx 应该就是分配空间大小，正如我们所猜测的那样，由于整数溢出，这里会分配一个超大的空间。问题就在这里，因为我的虚拟机内存不足，所以这个函数调用失败了。</p>
+<p>调高虚拟机内存后，空间分配成功，继续执行数据复制操作：</p>
+<pre tabindex="0"><code>0: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0x19d:
+fffff805`7e925605 e83619d0ff      call    nt!memcpy (fffff805`7e626f40)
+0: kd&gt; r rcx
+rcx=ffffd6001c000000
+0: kd&gt; r rdx
+rdx=fffff805e5631008
+0: kd&gt; r r8
+r8=000000010000000b
+</code></pre><p>同样会尝试复制大量数据，数据源地址 <code>fffff805e5631008</code>，数据大小 <code>10000000b</code>，由于访问到非法内存空间，系统崩溃。</p>
+<p><img src="/img/2023-06-09-17-12-15.png" alt=""></p>
+<h2 id="4-总结">4. 总结</h2>
+<p>通过以上分析可知，CVE-2023-24949 是一个整数溢出漏洞，到我分析的位置为止，该漏洞可以实现内存越界读，如果想要实现本地提权，还需要进一步分析。</p>
+<p>值得注意的是，这个漏洞的触发条件十分简单，在保证内存足够的前提下，只要在资源管理器看到测试文件就能触发漏洞，如果将测试文件放在桌面，系统将无法正常启动。如果配合钓鱼攻击，该漏洞可以实现更多功能。鉴于此，这次的 poc 文件不会直接发布在 github 上，感兴趣的朋友可以根据文章自己进行复现。</p>
+<h2 id="5-参考资料">5. 参考资料</h2>
+<ol>
+<li><a href="https://denuvosoftwaresolutions.github.io/DVRT/dvrt.html">Dynamic Value Relocation Table (DVRT) details</a></li>
+<li><a href="https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#the-load-configuration-structure-image-only">Windows PE32 load config directory</a></li>
+<li><a href="https://denuvosoftwaresolutions.github.io/DVRT/haunted">How Meltdown and Spectre haunt Anti-Cheat</a></li>
+<li><a href="https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-24949">https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-24949</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/cve/" rel="tag">cve</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/poc/" rel="tag">poc</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+<div class="authorbox clearfix">
+	<figure class="authorbox__avatar">
+		<img alt="zoemurmure avatar" src="/img/avatar.jpg" class="avatar" height="90" width="90">
+	</figure>
+	<div class="authorbox__header">
+		<span class="authorbox__name">About zoemurmure</span>
+	</div>
+	<div class="authorbox__description">
+		二进制安全研究菜鸟，微信公众号：逻辑门
+	</div>
+</div>
+
+<nav class="pager flex">
+	<div class="pager__item pager__item--prev">
+		<a class="pager__link" href="/posts/cve_2023_21554/" rel="prev">
+			<span class="pager__subtitle">«&thinsp;Previous</span>
+			<p class="pager__title">[CVE-2023-21554] Windows Message Queuing 远程代码执行漏洞分析</p>
+		</a>
+	</div>
+</nav>
+
+
+
+
+<section class="comments">
+<script src="https://utteranc.es/client.js"
+	repo="zoemurmure/zoemurmure.github.io"
+	issue-term="pathname"
+	theme="github-light"
+	crossorigin="anonymous"
+	async>
+</script>
+</section>
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2023 Logic Security 逻辑门.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+<script src="/js/custom.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.6/MathJax.js?config=TeX-AMS-MML_HTMLorMML" async></script>
+</body>
+</html>
