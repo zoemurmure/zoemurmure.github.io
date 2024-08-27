@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[学习笔记]Windows Downdate 漏洞挖掘和利用学习 - Logic Security 逻辑门</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="Windows downdate 漏洞挖掘和利用学习">
+		<meta property="og:title" content="[学习笔记]Windows Downdate 漏洞挖掘和利用学习" />
+<meta property="og:description" content="Windows downdate 漏洞挖掘和利用学习" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://www.zoemurmure.top/posts/windows_downdate/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2024-08-27T15:55:41+08:00" />
+<meta property="article:modified_time" content="2024-08-27T15:55:41+08:00" />
+
+		<meta itemprop="name" content="[学习笔记]Windows Downdate 漏洞挖掘和利用学习">
+<meta itemprop="description" content="Windows downdate 漏洞挖掘和利用学习"><meta itemprop="datePublished" content="2024-08-27T15:55:41+08:00" />
+<meta itemprop="dateModified" content="2024-08-27T15:55:41+08:00" />
+<meta itemprop="wordCount" content="2984">
+<meta itemprop="keywords" content="notes,exploit," />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	<link rel="stylesheet" href="/css/custom.css">
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security 逻辑门" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security 逻辑门</div>
+					<div class="logo__tagline">欢迎关注同名微信公众号：逻辑门(*^_^*)</div>
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/history/">
+				
+				<span class="menu__text">历史文章</span>
+				
+			</a>
+		</li>
+	</ul>
+</nav>
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[学习笔记]Windows Downdate 漏洞挖掘和利用学习</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2024-08-27T15:55:41&#43;08:00">2024-08-27</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    <span class="post-date">共2984字</span>，阅读约<span class="more-meta"> 6 分钟</span>
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" rel="category">漏洞分析</a>
+	</span>
+</div></div>
+		</header>
+		
+<div class="post__toc toc">
+	<div class="toc__title">Page content</div>
+	<div class="toc__menu">
+		<nav id="TableOfContents">
+  <ul>
+    <li><a href="#简述">简述</a></li>
+    <li><a href="#原理">原理</a>
+      <ul>
+        <li><a href="#windows-update-architecture">Windows Update Architecture</a></li>
+        <li><a href="#windows-update-flow">Windows Update Flow</a></li>
+        <li><a href="#-target-升级目录">🎯 Target 升级目录</a></li>
+        <li><a href="#-target-行动清单">🎯 Target 行动清单</a></li>
+      </ul>
+    </li>
+    <li><a href="#可实现功能">可实现功能</a>
+      <ul>
+        <li><a href="#windows-virtualizaition-based-security-vbs">Windows Virtualizaition-based security, VBS</a></li>
+        <li><a href="#vbs-结构">VBS 结构</a></li>
+        <li><a href="#uefi-lock">UEFI lock</a></li>
+        <li><a href="#绕过-uefi-lock">绕过 UEFI lock</a></li>
+        <li><a href="#绕过-vbs-安全边界">绕过 VBS 安全边界</a></li>
+      </ul>
+    </li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ul>
+</nav>
+	</div>
+</div><div class="content post__content clearfix">
+			<h2 id="简述">简述</h2>
+<p>在这篇文章中，作者通过检查 Windows Update 的结构及流程，发现了其中存在的漏洞。在 Administrator 的权限下，攻击者可以通过修改注册表键值，任意控制系统文件，对其进行替换并绕过系统检查。由于系统缺乏对降级文件的检测，在这种能力下，可以进一步实现更多越权操作。</p>
+<h2 id="原理">原理</h2>
+<h3 id="windows-update-architecture">Windows Update Architecture</h3>
+<p><img src="/img/windows_downdate_1.png" alt=""></p>
+<p><strong>思路一：在上图的结构中，从 Administrator 到 Trusted Installer 有提权的可能，因此仅向 Trusted Installer 提供权限无法保证安全。</strong></p>
+<p><strong>问题：提权过程会被 EDR 拦截，无法绕过检测。</strong></p>
+<h3 id="windows-update-flow">Windows Update Flow</h3>
+<ol>
+<li>客户端请求服务端进行升级，并提供升级目录；</li>
+<li>服务端验证升级目录完整性；</li>
+<li>验证过程中，服务端会对升级目录中的文件进行处理，得到升级文件，保存在服务端控制的文件夹中<code>%WinDir%/WinSxs/</code>，客户端无法访问；</li>
+<li>服务端会在该目录下保存一个行动清单，<code>Pending.xml</code> ，文件中包含了执行更新时要进行的操作。例如更新哪个文件，源文件和目的文件等；</li>
+<li>最后，系统重启，系统在重启的过程中，按照行动清单对系统进行更新。</li>
+</ol>
+<p><strong>思路二：整个流程中，可控的只有一开始的升级目录，需要检查修改该目录是否可以控制后续流程，导致升级文件降级。</strong></p>
+<h3 id="-target-升级目录">🎯 Target 升级目录</h3>
+<p>升级目录由以下文件组成</p>
+<ul>
+<li>MUM 文件：Microsoft Update Metadata，元信息、组件依赖、安装顺序……</li>
+<li>Manifest 文件：安装相关信息，例如文件路径、注册表……</li>
+<li>差异文件：基础文件 + 差异文件 → 完整的更新文件</li>
+<li>目录文件：MUM 和 manifest 文件的电子签名。不是在文件中包含其电子签名，而是同时对多个文件进行签名，同时目录文件自身也进行了签名。因此无法篡改目录文件或被其签名的文件。</li>
+</ul>
+<p>因此，差异文件并没有任何签名……但是，它的哈希信息保存在了 manifest 文件中</p>
+<h3 id="-target-行动清单">🎯 Target 行动清单</h3>
+<p>行动清单是保存在 Trusted Installer 控制的目录下的，很难想到要考虑这个文件，但是作者考虑到<strong>更新过程经历了多次重启，因此行动清单的缓存一定保存在某个位置上</strong>。</p>
+<p><em>我下意识觉得会直接读取目录下的文件内容，但是更合理的是类似于数据从硬盘读到内存，更新过程中会保存一份清单的实时信息</em></p>
+<p><strong>怎么找到这个位置？作者选择去搜索注册表！！！！我就想不到</strong></p>
+<p>在注册表中搜索 <code>pending.xml</code> 可以定位到相关键值：</p>
+<p><img src="/img/windows_downdate_2.png" alt=""></p>
+<p><em>这个键值可能在系统需要更新重启的时候才有</em></p>
+<p><code>poqexec.exe</code> 全名叫做 基元操作队列执行程序，网上找不到太多信息，但是从命令行看也知道这个程序可以解析 <code>pending.xml</code> 文件。</p>
+<p>作者提到他检查了这个键的安全属性，我不知道怎么检查……或者说我没有意识到注册表有权限这个东西。</p>
+<p>注册表权限可以通过 <strong>编辑→权限</strong> 检查：</p>
+<p><img src="/img/windows_downdate_3.png" alt=""></p>
+<p>这个键值并没有限制仅由 Trusted Installer  控制，因此可以通过修改该键值控制更新时行为。</p>
+<p>可以自己写一个 <code>pending.xml</code> 文件，然后将注册表中的路径修改为自己写的 <code>pending.xml</code> 文件的路径。</p>
+<p><code>pending.xml</code> 文件中的 <code>&lt;POQ postAction=”reboot”&gt;</code> 字段控制了重启时的行为，可以修改 <code>HardlinkFile</code> 中的 <code>source</code> ，这样重启时它就会替换 <code>destination</code> 指向的文件。</p>
+<p><em>这里我有点儿疑问，问什么不能修改 <code>MoveFile</code> 的 <code>source</code> 和  <code>destination</code> ，根据字段中的数值猜测，不同行为都是更新过程中的一环，<code>MoveFile</code> 是在对升级目录中的文件进行移动，之后会基于这个移动进一步对文件进行修改，最后通过 <code>HardLinkFile</code> 将更新文件放入系统目录中。因此如果修改 <code>MoveFile</code> ，相当于修改了中间环节，会导致后续环节出错，而如果修改 <code>HardLinkFile</code> ，相当于修改了更新的最后一步，不会造成其他影响。</em></p>
+<p>文章中还提到一个键值 <code>HKLM\COMPONENTS\PendingXmlIdentifier</code> 这个键值我没找到，不知道出现的条件是什么，根据文章所述，这个键值用于和 <code>pending.xml</code> 中的 <code>identifier</code> ****进行比较，以保证文件的完整性。</p>
+<p>因此想要进行可控更新，只需要：</p>
+<ol>
+<li>设置 Trusted Installer 服务为自启动；</li>
+<li>在注册表中添加 <code>PoqexecCmdline</code> 键并设置 <code>pending.xml</code> 文件路径；</li>
+<li>在注册表中添加 <code>PendingXmlIdentifier</code> 键并设置对应 <code>Identifier</code> 数值。</li>
+</ol>
+<p>行动清单文件是在更新最后，重启之前才生成的，因此生成该文件的时候所有完整性检查已经完成了，因此这个时候修改注册表中的 <code>pending.xml</code>  文件路径并不会影响更新过程。</p>
+<p>除此之外，通过 <code>pending.xml</code>  中的设置，可以对 <code>poqexec.exe</code> 、<code>SFC.EXE</code>  文件进行替换，这几个文件和更新相关，且都没有数字签名，可以进行篡改。修改 <code>poqexec.exe</code> 使其在更新文件时实际并不进行任何更新，这样被降级的文件也不会进行更新；<code>SFC.exe</code> 文件用于系统完整性检查和修复，修改该文件使系统不在进行相关行为。</p>
+<p>到此为止，我们可以控制系统上的任何文件，将其替换成内容可控的文件。</p>
+<h2 id="可实现功能">可实现功能</h2>
+<p>可能是没有想到有这样的攻击方式，Windows 中的很多功能都没有检测降级文件的功能，在拥有可以替换任何系统文件的能力之后，可以实现很多越权功能。</p>
+<h3 id="windows-virtualizaition-based-security-vbs">Windows Virtualizaition-based security, VBS</h3>
+<p>Windows 的 VBS 功能利用现代 CPU 中的虚拟化技术，在操作系统中创建一个隔离的安全环境。这个环境将操作系统和关键系统组件与潜在的恶意软件隔离开来，从而提供额外的安全层。</p>
+<p>VBS 功能包括 Credential Guard，HVCI，System Guard Secure Launch，Shielded VMs 等。</p>
+<ul>
+<li>Credential Guard 是 Windows 10 及更高版本（如 Windows 11）中提供的一项安全功能，它利用基于虚拟化的安全（VBS）技术来隔离和保护敏感的凭据信息，如 NTLM 密码哈希、Kerberos票证授予票证（TGT）等。Credential Guard 通过创建一个隔离的虚拟环境来存储和保护凭据，确保只有特权系统软件才能访问这些敏感信息。这种隔离机制有助于防止非法的凭据窃取，从而保护系统免受凭据被盗攻击，如传递哈希和传递票证等；</li>
+<li>HVCI，即 Hypervisor-Enforced Code Intergrity，也被称为内存完整性。HVCI 利用虚拟化技术，在操作系统和硬件之间创建了一个隔离层，即虚拟机监控程序（Hypervisor），来监控和保护代码执行过程中的完整性。通过HVCI，Windows能够确保只有经过验证和签名的代码才能在系统的关键部分（如内核模式）执行。这有助于防止恶意软件通过篡改内存或使用未经验证的驱动程序来攻击系统；</li>
+<li>System Guard Secure Launch是Windows 10及更高版本中引入的一个安全启动过程，它利用最新的硬件安全功能和虚拟化技术来确保系统从启动到运行的整个过程都保持安全。System Guard Secure Launch会在系统启动时验证系统固件、驱动程序和操作系统的完整性，确保它们未被篡改；</li>
+<li>Shielded VMs（屏蔽虚拟机）是一种增强的虚拟机安全解决方案，旨在提供更高的安全性，以保护虚拟机免受包括 guest 系统固件、恶意guest-VM 内核或用户模式漏洞的 guest 操作系统，以及恶意客户内部人员篡改 guest-VM 映像等攻击媒介的侵扰。</li>
+</ul>
+<h3 id="vbs-结构">VBS 结构</h3>
+<p><img src="/img/windows_downdate_4.png" alt=""></p>
+<p>VBS 将系统分成了不同的 Virtual Trust Levels(VTLs)，VTL 等级越高，权限越大，低等级 VTL 无法访问高等级 VTL，目前 Windows 中存在两层 VTL。</p>
+<h3 id="uefi-lock">UEFI lock</h3>
+<p>为了保护 VBS 功能不会被轻易关闭，VBS 实现了一个叫做 UEFI lock 的功能。如果想要关闭 VBS，用户需要启动一个微软签名的 EFI 应用，该应用会在计算机启动的时候询问用户关闭 VBS 功能。由于 Secure Boot 功能，只有经过签名的代码能够在计算机启动的时候执行，因此如果无法物理接触计算机，就无法关闭 VBS 功能。</p>
+<h3 id="绕过-uefi-lock">绕过 UEFI lock</h3>
+<p>作者发现，如果使用上述攻击方式替换 Secure Kernel 或者 hypervisor powering VBS 相关文件，计算机仍旧会正常启动，并且放弃 VBS 功能。</p>
+<p>作者替换了：</p>
+<ul>
+<li>MsMpEng.exe：Antimalware Service Executable</li>
+<li>securekernel.exe：NT Secure Kernel</li>
+<li>ntoskrnl.exe：NT Kernel &amp; System</li>
+<li>ntfs.sys：NT 文件系统驱动程序</li>
+<li>fltMgr.sys：Microsoft 文件系统筛选器管理器</li>
+<li>ci.dll：Code Integrity Module</li>
+</ul>
+<p>通过以上文件替换，可以绕过 Windows 的 PPL(Protected Process Light)、Crendential Guard、Windows Defender 功能，并绕过 UEFI Lock，实现凭据窃取。</p>
+<p><img src="/img/windows_downdate_5.png" alt=""></p>
+<p><img src="/img/windows_downdate_6.png" alt=""></p>
+<h3 id="绕过-vbs-安全边界">绕过 VBS 安全边界</h3>
+<p>上面介绍 VBS 结构的时候提到 VBS 会将系统分成不同的 VTL，通过将相关系统文件降级，可以利用历史漏洞绕过 VTL 边界。</p>
+<p>降级之前：</p>
+<p><img src="/img/windows_downdate_7.png" alt=""></p>
+<p>降级：</p>
+<p><img src="/img/windows_downdate_8.png" alt=""></p>
+<p>降级之后：</p>
+<p><img src="/img/windows_downdate_9.png" alt=""></p>
+<h2 id="参考资料">参考资料</h2>
+<ul>
+<li><a href="https://www.safebreach.com/blog/downgrade-attacks-using-windows-updates/">Windows Downdate: Downgrade Attacks Using Windows Updates</a></li>
+<li><a href="https://github.com/SafeBreach-Labs/WindowsDowndate">https://github.com/SafeBreach-Labs/WindowsDowndate</a></li>
+</ul>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/notes/" rel="tag">notes</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/exploit/" rel="tag">exploit</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+<div class="authorbox clearfix">
+	<figure class="authorbox__avatar">
+		<img alt="zoemurmure avatar" src="/img/avatar.jpg" class="avatar" height="90" width="90">
+	</figure>
+	<div class="authorbox__header">
+		<span class="authorbox__name">About zoemurmure</span>
+	</div>
+	<div class="authorbox__description">
+		二进制安全研究菜鸟，微信公众号：逻辑门
+	</div>
+</div>
+
+<nav class="pager flex">
+	<div class="pager__item pager__item--prev">
+		<a class="pager__link" href="/posts/cve_2023_24949/" rel="prev">
+			<span class="pager__subtitle">«&thinsp;Previous</span>
+			<p class="pager__title">[CVE-2023-24949] Windows 内核提权漏洞分析</p>
+		</a>
+	</div>
+</nav>
+
+
+
+
+<section class="comments">
+<script src="https://utteranc.es/client.js"
+	repo="zoemurmure/zoemurmure.github.io"
+	issue-term="pathname"
+	theme="github-light"
+	crossorigin="anonymous"
+	async>
+</script>
+</section>
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2024 Logic Security 逻辑门.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+<script src="/js/custom.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.6/MathJax.js?config=TeX-AMS-MML_HTMLorMML" async></script>
+</body>
+</html>
