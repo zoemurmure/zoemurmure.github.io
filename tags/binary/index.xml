@@ -6,7 +6,16 @@
     <description>Recent content in binary on Logic Security 逻辑门</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>zh</language>
-    <lastBuildDate>Mon, 12 Jun 2023 16:57:51 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/binary/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Mon, 21 Oct 2024 18:15:39 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/binary/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>[CVE-2024-43560] Windows 存储端口驱动程序权限提升漏洞</title>
+      <link>https://www.zoemurmure.top/posts/cve_2024_43560/</link>
+      <pubDate>Mon, 21 Oct 2024 18:15:39 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/cve_2024_43560/</guid>
+      <description>1. 背景知识 根据漏洞名称(Microsoft Windows Storage Port Driver)搜索确定对应文件为 storport.sys，该驱动用于计算机和高性能存储设备之</description>
+    </item>
+    
     <item>
       <title>[CVE-2023-24949] Windows 内核提权漏洞分析</title>
       <link>https://www.zoemurmure.top/posts/cve_2023_24949/</link>

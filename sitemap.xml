@@ -2,37 +2,40 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://www.zoemurmure.top/posts/windows_downdate/</loc>
-    <lastmod>2024-08-27T15:55:41+08:00</lastmod>
+    <loc>https://www.zoemurmure.top/posts/cve_2024_43560/</loc>
+    <lastmod>2024-10-21T18:15:39+08:00</lastmod>
+  </url><url>
+    <loc>https://www.zoemurmure.top/tags/binary/</loc>
+    <lastmod>2024-10-21T18:15:39+08:00</lastmod>
   </url><url>
     <loc>https://www.zoemurmure.top/categories/</loc>
-    <lastmod>2024-08-27T15:55:41+08:00</lastmod>
+    <lastmod>2024-10-21T18:15:39+08:00</lastmod>
+  </url><url>
+    <loc>https://www.zoemurmure.top/tags/cve/</loc>
+    <lastmod>2024-10-21T18:15:39+08:00</lastmod>
   </url><url>
     <loc>https://www.zoemurmure.top/tags/exploit/</loc>
-    <lastmod>2024-08-27T15:55:41+08:00</lastmod>
+    <lastmod>2024-10-21T18:15:39+08:00</lastmod>
   </url><url>
     <loc>https://www.zoemurmure.top/</loc>
+    <lastmod>2024-10-21T18:15:39+08:00</lastmod>
+  </url><url>
+    <loc>https://www.zoemurmure.top/posts/</loc>
+    <lastmod>2024-10-21T18:15:39+08:00</lastmod>
+  </url><url>
+    <loc>https://www.zoemurmure.top/tags/</loc>
+    <lastmod>2024-10-21T18:15:39+08:00</lastmod>
+  </url><url>
+    <loc>https://www.zoemurmure.top/categories/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/</loc>
+    <lastmod>2024-10-21T18:15:39+08:00</lastmod>
+  </url><url>
+    <loc>https://www.zoemurmure.top/posts/windows_downdate/</loc>
     <lastmod>2024-08-27T15:55:41+08:00</lastmod>
   </url><url>
     <loc>https://www.zoemurmure.top/tags/notes/</loc>
     <lastmod>2024-08-27T15:55:41+08:00</lastmod>
   </url><url>
-    <loc>https://www.zoemurmure.top/posts/</loc>
-    <lastmod>2024-08-27T15:55:41+08:00</lastmod>
-  </url><url>
-    <loc>https://www.zoemurmure.top/tags/</loc>
-    <lastmod>2024-08-27T15:55:41+08:00</lastmod>
-  </url><url>
-    <loc>https://www.zoemurmure.top/categories/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/</loc>
-    <lastmod>2024-08-27T15:55:41+08:00</lastmod>
-  </url><url>
     <loc>https://www.zoemurmure.top/posts/cve_2023_24949/</loc>
-    <lastmod>2023-06-12T16:57:51+08:00</lastmod>
-  </url><url>
-    <loc>https://www.zoemurmure.top/tags/binary/</loc>
-    <lastmod>2023-06-12T16:57:51+08:00</lastmod>
-  </url><url>
-    <loc>https://www.zoemurmure.top/tags/cve/</loc>
     <lastmod>2023-06-12T16:57:51+08:00</lastmod>
   </url><url>
     <loc>https://www.zoemurmure.top/tags/poc/</loc>

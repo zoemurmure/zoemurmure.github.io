@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[CVE-2024-43560] Windows 存储端口驱动程序权限提升漏洞 - Logic Security 逻辑门</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="CVE-2024-43560 Windows 存储端口驱动程序权限提升漏洞">
+		<meta property="og:title" content="[CVE-2024-43560] Windows 存储端口驱动程序权限提升漏洞" />
+<meta property="og:description" content="CVE-2024-43560 Windows 存储端口驱动程序权限提升漏洞" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://www.zoemurmure.top/posts/cve_2024_43560/" /><meta property="article:section" content="posts" />
+<meta property="article:published_time" content="2024-10-21T18:15:39+08:00" />
+<meta property="article:modified_time" content="2024-10-21T18:15:39+08:00" />
+
+		<meta itemprop="name" content="[CVE-2024-43560] Windows 存储端口驱动程序权限提升漏洞">
+<meta itemprop="description" content="CVE-2024-43560 Windows 存储端口驱动程序权限提升漏洞"><meta itemprop="datePublished" content="2024-10-21T18:15:39+08:00" />
+<meta itemprop="dateModified" content="2024-10-21T18:15:39+08:00" />
+<meta itemprop="wordCount" content="3001">
+<meta itemprop="keywords" content="cve,binary,exploit," />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	<link rel="stylesheet" href="/css/custom.css">
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security 逻辑门" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security 逻辑门</div>
+					<div class="logo__tagline">欢迎关注同名微信公众号：逻辑门(*^_^*)</div>
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/history/">
+				
+				<span class="menu__text">历史文章</span>
+				
+			</a>
+		</li>
+	</ul>
+</nav>
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[CVE-2024-43560] Windows 存储端口驱动程序权限提升漏洞</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2024-10-21T18:15:39&#43;08:00">2024-10-21</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    <span class="post-date">共3001字</span>，阅读约<span class="more-meta"> 6 分钟</span>
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" rel="category">漏洞分析</a>
+	</span>
+</div></div>
+		</header>
+		
+<div class="post__toc toc">
+	<div class="toc__title">Page content</div>
+	<div class="toc__menu">
+		<nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-背景知识">1. 背景知识</a></li>
+    <li><a href="#2-补丁对比">2. 补丁对比</a></li>
+    <li><a href="#3-漏洞原理与修复分析">3. 漏洞原理与修复分析</a></li>
+    <li><a href="#4-漏洞触发">4. 漏洞触发</a></li>
+    <li><a href="#5-反思">5. 反思</a></li>
+  </ul>
+</nav>
+	</div>
+</div><div class="content post__content clearfix">
+			<h2 id="1-背景知识">1. 背景知识</h2>
+<p>根据漏洞名称(Microsoft Windows Storage Port Driver)搜索确定对应文件为 <code>storport.sys</code>，该驱动用于计算机和高性能存储设备之间的通信，定义了计算机如何和设备之间进行通信。</p>
+<h2 id="2-补丁对比">2. 补丁对比</h2>
+<p>系统版本：Win11 22H2 专业版</p>
+<p>对比显示有 6 个函数存在修改：</p>
+<p><img src="/img/CVE-2024-43560_0.png" alt="image.png"></p>
+<p>经过对补丁修复前后的函数代码对比，代码差异主要存在于 <code>Feature_</code> 类函数调用上，此类函数用于与升级前代码兼容，通过检查某个全局变量变量是否执行升级后代码，其中函数 <code>RaUnitStorageGetIdlePowerUpReason</code> 除了调用 <code>Feature_</code> 类函数外，对数据的操作最多，因此判断漏洞可能存在于该函数中。</p>
+<p><img src="/img/CVE-2024-43560_1.png" alt="image.png"></p>
+<p>所以补丁修复后的代码中，如果某个全局变量未启用，就执行修复前代码，如果启用，就执行新增代码。因此可以直接比对这两者之间的区别，区别在于框选中的代码：</p>
+<p><img src="/img/CVE-2024-43560_2.png" alt="image.png"></p>
+<h2 id="3-漏洞原理与修复分析">3. 漏洞原理与修复分析</h2>
+<p>虽然找到了修复代码的位置，但是从目前的代码中看不出有什么漏洞，比较值得注意的就是在比较 <code>stackLocation-&gt;Parameters.Read.Length</code> 的大小的时候，数值从 0x8 变成了 0xC，并且判断了 <code>masterIrp</code> 是否为 0，这部分肯定了漏洞有关。</p>
+<p>我猜测了一些原因，但是因为已知信息太少，没办法确定，首先需要弄清楚这里的参数还有结构体是什么。</p>
+<p>通过查询官方文档中<a href="https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_irp">关于 IRP 的结构介绍</a>，发现 <code>irp-&gt;AssociatedIrp.MasterIrp</code> 中 <code>MasterIrp</code> 实际上是一个 <code>union</code> 字段，定义为：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>   <span style="color:#66d9ef">union</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">struct</span> _IRP     <span style="color:#f92672">*</span>MasterIrp;
+</span></span><span style="display:flex;"><span>    __volatile LONG IrpCount;
+</span></span><span style="display:flex;"><span>    PVOID           SystemBuffer;
+</span></span><span style="display:flex;"><span>  } AssociatedIrp;
+</span></span></code></pre></div><p>这里比较合理的选择应该是 <code>SystemBuffer</code> 。因此接下来需要弄清楚在函数  <code>RaUnitStorageGetIdlePowerUpReason</code> 中，处理的是什么请求，对应的 <code>SystemBuffer</code> 中保存的又是什么数据结构。</p>
+<p>在搜索关键字 <code>Storage PowerUpReason</code> 的时候，找到了<a href="https://github.com/tpn/winsdk-10/blob/master/Include/10.0.10240.0/shared/ntddstor.h">这个页面</a>以及<a href="https://doxygen.reactos.org/d6/d86/struct__STORAGE__IDLE__POWERUP__REASON.html">这个页面</a>，获得数据结构：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// IOCTL_STORAGE_GET_IDLE_POWERUP_REASON
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// Input Buffer:
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//      None.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// Output Buffer:
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//      A STORAGE_IDLE_POWERUP_REASON structure specifying what caused the power up.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">enum</span> _STORAGE_POWERUP_REASON_TYPE {
+</span></span><span style="display:flex;"><span>  StoragePowerupUnknown           <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>,
+</span></span><span style="display:flex;"><span>  StoragePowerupIO,
+</span></span><span style="display:flex;"><span>  StoragePowerupDeviceAttention
+</span></span><span style="display:flex;"><span>} STORAGE_POWERUP_REASON_TYPE, <span style="color:#f92672">*</span>PSTORAGE_POWERUP_REASON_TYPE;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> _STORAGE_IDLE_POWERUP_REASON {
+</span></span><span style="display:flex;"><span>    ULONG Version;                          <span style="color:#75715e">// Structure version, should be set to 1 for Win8.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONG Size;                             <span style="color:#75715e">// Size of this structure in bytes.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    STORAGE_POWERUP_REASON_TYPE PowerupReason;   <span style="color:#75715e">// The reason for the power up (see above).
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>} STORAGE_IDLE_POWERUP_REASON, <span style="color:#f92672">*</span>PSTORAGE_IDLE_POWERUP_REASON;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#define STORAGE_IDLE_POWERUP_REASON_VERSION_V1 1
+</span></span></span></code></pre></div><p>虽然此时不能确定<code>SystemBuffer</code> 到底是什么结构，但是目前只得到这些信息，所以先把它设置为类型 <code>PSTORAGE_IDLE_POWERUP_REASON</code> ，代码看起来很合理：</p>
+<p><img src="/img/CVE-2024-43560_3.png" alt="image.png"></p>
+<p><code>stackLocation-&gt;Parameters.Read.Length</code> 这个字段我其实不太确定什么意思，但是根据上下文猜测，应该就是在判断保存 <code>PSTORAGE_IDLE_POWERUP_REASON</code> 这块的缓冲区有多大，因为我同时找到了<a href="https://doxygen.reactos.org/de/da9/cdrom_8h.html#a9cc295e4a24cdfbf833511205a33990c">一段构造此类请求的代码</a>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>irp <span style="color:#f92672">=</span> <span style="color:#a6e22e">IoBuildDeviceIoControlRequest</span>(IOCTL_STORAGE_GET_IDLE_POWERUP_REASON,
+</span></span><span style="display:flex;"><span>                                    DeviceExtension<span style="color:#f92672">-&gt;</span>LowerPdo,
+</span></span><span style="display:flex;"><span>                                    PowerupReason,
+</span></span><span style="display:flex;"><span>                                    <span style="color:#66d9ef">sizeof</span> (STORAGE_IDLE_POWERUP_REASON),
+</span></span><span style="display:flex;"><span>                                    PowerupReason,
+</span></span><span style="display:flex;"><span>                                    <span style="color:#66d9ef">sizeof</span> (STORAGE_IDLE_POWERUP_REASON),
+</span></span><span style="display:flex;"><span>                                    FALSE,
+</span></span><span style="display:flex;"><span>                                    <span style="color:#f92672">&amp;</span>event,
+</span></span><span style="display:flex;"><span>                                    <span style="color:#f92672">&amp;</span>ioStatus);
+</span></span></code></pre></div><p>可以看到此类请求的 <code>InputBuffer</code> 和 <code>OutputBuffer</code> 都是 <code>PowerupReason</code>。  所以说<code>stackLocation-&gt;Parameters.Read.Length</code> 大概就是在检查这个缓冲区的大小。</p>
+<p>那么修复前的代码究竟有什么问题呢？首先一个比较明显的问题就是，代码修复前，只检查了<code>stackLocation-&gt;Parameters.Read.Length</code> 是否小于 8，这显然是不对的，因为正常来说这个缓冲区大小应该是 12，不知道为什么这里要写成 8。</p>
+<p>但是这样写真的有影响吗，一开始我没有看出来，可能从伪代码看不太清晰，我们直接看汇编：</p>
+<p><img src="/img/CVE-2024-43560_4.png" alt="image.png"></p>
+<p>修复前的代码在检查了<code>stackLocation-&gt;Parameters.Read.Length</code> 是否小于 8 之后，也检查了 <code>[sys_buf]+12</code> 是否大于 <code>[sys_buf] + sys_buf.size</code> ，就是说根据 <code>size</code> 字段计算得到的 <code>sys_buf</code> 的末尾地址是否超过了 <code>sys_buf</code> 后 12 个字节的地址，只有在超过的情况下才会访问它的 <code>PowerupReason</code>字段 。看起来好像没问题，这不就是在检查 <code>sys_buf</code> 的大小有没有超过 12 个字节吗？然后我才意识到，这里获得的 sys_buf 的大小并不是来源于函数 <code>IoBuildDeviceIoControlRequest</code> 中的 <code>InputBufferSize</code> 参数，即通过 <code>sizeof (STORAGE_IDLE_POWERUP_REASON)</code> 得到的大小，而是来自参数 <code>PowerupReason</code> 中的 <code>size</code> 字段，这个字段是用户可控的！</p>
+<p>如果攻击者在通过 <code>IoBuildDeviceIoControlRequest</code> 构造请求的时候传入的 <code>PowerupReason</code> 的大小只有 8，但是设置其中的 size 字段数值是 12，同样能够通过检查，但是在通过检查之后访问 <code>PowerupReason</code> 字段时，会出现越界访问，因为 <code>PowerupReason</code> 字段在偏移 8 个字节的位置。</p>
+<p>因此这是一个越界写漏洞。</p>
+<p>微软的修复方式其实就是将 8 改成了 12，同时更加规范的对 OutputBuffer（即同样作为输入的 <code>PowerupReason</code>） 中的内容进行了赋值，而不是直接信任来自 <code>InputBuffer</code>（同样是 <code>PowerupReason</code>）中的内容。</p>
+<h2 id="4-漏洞触发">4. 漏洞触发</h2>
+<p>有了上面的分析其实触发就比较简单了，可以看一下整个函数调用链</p>
+<p><img src="/img/CVE-2024-43560_5.png" alt="image.png"></p>
+<p>并不深，查看上层代码发现基本上确定请求类型之后就直接调用了漏洞函数，因此没有需要满足的其他条件，可以直接调用 <code>DeviceIoControl</code> 触发漏洞。</p>
+<p>之前找到的<a href="https://doxygen.reactos.org/de/da9/cdrom_8h.html#a9cc295e4a24cdfbf833511205a33990c">示例代码</a>中其实也构造了 irp 请求并调用了驱动，但是并没有使用 <code>DeviceIoControl</code> 的方式，因为它是操作系统的代码，所以在自己写 poc 代码的时候可以参考这个示例，但没办法直接挪用。</p>
+<p>参考 <code>IoBuildDeviceIoControlRequest</code>，<code>DeviceIoControl</code> 的调用如下所示：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>status <span style="color:#f92672">=</span> <span style="color:#a6e22e">DeviceIoControl</span>(  
+</span></span><span style="display:flex;"><span>    hDevice,  
+</span></span><span style="display:flex;"><span>    IOCTL_STORAGE_GET_IDLE_POWERUP_REASON,  
+</span></span><span style="display:flex;"><span>    PowerupReason,  
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">sizeof</span> (STORAGE_IDLE_POWERUP_REASON),  
+</span></span><span style="display:flex;"><span>    PowerupReason,  
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">sizeof</span> (STORAGE_IDLE_POWERUP_REASON),  
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&amp;</span>bytesReturned,  
+</span></span><span style="display:flex;"><span>    NULL  
+</span></span><span style="display:flex;"><span>);
+</span></span></code></pre></div><p>只需要解决 <code>hDevice</code>，然后构造可以触发漏洞的 <code>PowerupReason</code> 即可。</p>
+<p>在示例代码中，有一个参数 <code>deviceExtension</code>，类型是 <code>PCDROM_DEVICE_EXTENSION</code>，因此考虑 <code>hDevice</code> 传入的也是一个 CDROM 的句柄。</p>
+<p>在 WinObj64.exe 中搜索 cdrom，找到一下内容：</p>
+<p><img src="/img/CVE-2024-43560_6.png" alt="image.png"></p>
+<p>虽然不知道具体都是什么，但是看起来 <code>\Device\0000006e</code> 更加合理。</p>
+<p>因此只需要调用 <code>NtCreateFile</code> 获得设备句柄，然后构造好可以触发漏洞的 <code>powerupReason</code>，再调用 <code>DeviceIoControl</code> 即可。</p>
+<p>但是这个漏洞的问题在于，虽然从定义上确实写入了超出<code>PowerupReason</code> 范围的内存，但是实际上系统分配的内存要超过 8 字节，因此绝大多数情况下，poc无法实现系统崩溃，漏洞触发是否成功只能通过调试发现。同时越界写入的内容并不可控，因此该漏洞的直接危害很小，获取可以通过其他漏洞组合实现利用。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">// 检查保存的缓冲区长度，确实是 8
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#ae81ff">1</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> dd ffffe28ff4a43f20 L1
+</span></span><span style="display:flex;"><span>ffffe28f<span style="color:#960050;background-color:#1e0010">`</span>f4a43f20  <span style="color:#ae81ff">0000000</span><span style="color:#ae81ff">8</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 缓冲区内容
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#ae81ff">1</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> dd rdx l4
+</span></span><span style="display:flex;"><span>ffffe28f<span style="color:#960050;background-color:#1e0010">`</span>f4c11f80  <span style="color:#ae81ff">00000001</span> <span style="color:#ae81ff">0000000</span>c <span style="color:#ae81ff">00000000</span> <span style="color:#ae81ff">00000000</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 包含 rdx 的 pool 的信息，大小有 96 字节
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#ae81ff">1</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> <span style="color:#f92672">!</span>pool rdx
+</span></span><span style="display:flex;"><span>Pool page ffffe28ff4c11f80 region is Nonpaged pool
+</span></span><span style="display:flex;"><span> ffffe28ff4c11050 size:   <span style="color:#ae81ff">60</span> previous size:    <span style="color:#ae81ff">0</span>  (Allocated)  MmSe
+</span></span><span style="display:flex;"><span> ......
+</span></span><span style="display:flex;"><span> ffffe28ff4c11ef0 size:   <span style="color:#ae81ff">60</span> previous size:    <span style="color:#ae81ff">0</span>  (Allocated)  MmSe
+</span></span><span style="display:flex;"><span><span style="color:#f92672">*</span>ffffe28ff4c11f50 size:   <span style="color:#ae81ff">60</span> previous size:    <span style="color:#ae81ff">0</span>  (Allocated) <span style="color:#f92672">*</span>IoSB Process: ffffe28ff4a340c0
+</span></span><span style="display:flex;"><span>        Owning component : <span style="color:#a6e22e">Unknown</span> (update pooltag.txt)
+</span></span></code></pre></div><p>可以看到缓冲区地址是 <code>rdx(ffffe28ff4c11f80)</code>，其所在 pool page 的区域是从 <code>ffffe28ff4c11f50</code> 开始的 96 个字节，也就是说虽然缓冲区名义上大小是 8 字节，但实际上可以容纳 48 个字节而不会发生崩溃。</p>
+<h2 id="5-反思">5. 反思</h2>
+<p>其实在找到漏洞函数之后我就有些不自信了，因为没办法直接看出来漏洞原理，所以瞅了一眼微软提供的资料，如果没有这些资料，我还是会怀疑漏洞在这里，但可能会因为缺乏自信而找不到正确的路径。<strong>确信存在漏洞→找不到漏洞的原因在于数据结构不清晰</strong>，怎样才能建立起这其中更加清晰的连接？如果确信存在漏洞只是一种心理自证，能够明确是数据结构不对则需要一些经验和知识的积累。</p>
+<p>想象我在没有资料的情况下会怎么处理这个漏洞：1）定位到漏洞函数后，<strong>需要更加确认，或者说以更加确信的态度去分析代码修复前后的差别</strong>，这样我可以找到图中的红框和黄框，并且注意到 8 和 12 的差别，这种数值的差别会进一步加强“这是漏洞函数”的结论；2）虽然有数值差别，但是我很难意识到这里面涉及到了一个缓冲区，即 MasterIrp 实际上 union 结构中的另一个字段，极大概率到这里我就停了。这里更多的是一种意识的培养，因此这一步只能假设我<strong>通过更多学习</strong>培养了这种意识；3）猜测到这里涉及到缓冲区之后，我会更有信心和动力往下搜索资料，去微软官网看文档一个很自然的步骤，大概率我也能够找到 <code>PSTORAGE_IDLE_POWERUP_REASON</code> 的相关内容，之后也能够顺利的确定漏洞原理；4）在漏洞利用阶段，阻碍的点在于获得文件句柄，文中我确定去找 CDROM 文件句柄的原因更像是按图索骥，因为知道要找 CDROM，所以关注到了源码中和 CDROM 相关的路径。无法确定的原因在于我只熟悉向 <code>CreateFile</code> 函数传递普通的文件路径参数，并<strong>不熟悉更加深入的系统编程</strong>。除此之外，我一开始在写 poc 代码的时候，使用的是 <code>CreateFile</code> 函数，但是这个函数会出错，必须使用 <code>NtCreateFile</code> 函数。其实如果只把知识点局限在写 poc 代码这一块儿内容的的话，内容是很有限的，因为我之前的分析重点更多放在了漏洞原理上面，对利用代码不熟悉，所以这部分能力应该很快就能提升。</p>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/cve/" rel="tag">cve</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/exploit/" rel="tag">exploit</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+<div class="authorbox clearfix">
+	<figure class="authorbox__avatar">
+		<img alt="zoemurmure avatar" src="/img/avatar.jpg" class="avatar" height="90" width="90">
+	</figure>
+	<div class="authorbox__header">
+		<span class="authorbox__name">About zoemurmure</span>
+	</div>
+	<div class="authorbox__description">
+		二进制安全研究菜鸟，微信公众号：逻辑门
+	</div>
+</div>
+
+<nav class="pager flex">
+	<div class="pager__item pager__item--prev">
+		<a class="pager__link" href="/posts/windows_downdate/" rel="prev">
+			<span class="pager__subtitle">«&thinsp;Previous</span>
+			<p class="pager__title">[学习笔记]Windows Downdate 漏洞挖掘和利用学习</p>
+		</a>
+	</div>
+</nav>
+
+
+
+
+<section class="comments">
+<script src="https://utteranc.es/client.js"
+	repo="zoemurmure/zoemurmure.github.io"
+	issue-term="pathname"
+	theme="github-light"
+	crossorigin="anonymous"
+	async>
+</script>
+</section>
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2024 Logic Security 逻辑门.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+<script src="/js/custom.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.6/MathJax.js?config=TeX-AMS-MML_HTMLorMML" async></script>
+</body>
+</html>

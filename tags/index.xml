@@ -6,11 +6,29 @@
     <description>Recent content in Tags on Logic Security 逻辑门</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>zh</language>
-    <lastBuildDate>Tue, 27 Aug 2024 15:55:41 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Mon, 21 Oct 2024 18:15:39 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>binary</title>
+      <link>https://www.zoemurmure.top/tags/binary/</link>
+      <pubDate>Mon, 21 Oct 2024 18:15:39 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/tags/binary/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>cve</title>
+      <link>https://www.zoemurmure.top/tags/cve/</link>
+      <pubDate>Mon, 21 Oct 2024 18:15:39 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/tags/cve/</guid>
+      <description></description>
+    </item>
+    
     <item>
       <title>exploit</title>
       <link>https://www.zoemurmure.top/tags/exploit/</link>
-      <pubDate>Tue, 27 Aug 2024 15:55:41 +0800</pubDate>
+      <pubDate>Mon, 21 Oct 2024 18:15:39 +0800</pubDate>
       
       <guid>https://www.zoemurmure.top/tags/exploit/</guid>
       <description></description>
@@ -22,24 +40,6 @@
       <pubDate>Tue, 27 Aug 2024 15:55:41 +0800</pubDate>
       
       <guid>https://www.zoemurmure.top/tags/notes/</guid>
-      <description></description>
-    </item>
-    
-    <item>
-      <title>binary</title>
-      <link>https://www.zoemurmure.top/tags/binary/</link>
-      <pubDate>Mon, 12 Jun 2023 16:57:51 +0800</pubDate>
-      
-      <guid>https://www.zoemurmure.top/tags/binary/</guid>
-      <description></description>
-    </item>
-    
-    <item>
-      <title>cve</title>
-      <link>https://www.zoemurmure.top/tags/cve/</link>
-      <pubDate>Mon, 12 Jun 2023 16:57:51 +0800</pubDate>
-      
-      <guid>https://www.zoemurmure.top/tags/cve/</guid>
       <description></description>
     </item>
     
