@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>os on Logic Security</title>
+    <link>https://www.zoemurmure.top/tags/os/</link>
+    <description>Recent content in os on Logic Security</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en</language>
+    <lastBuildDate>Tue, 10 Jan 2023 17:07:41 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/os/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>CSRSS Basics</title>
+      <link>https://www.zoemurmure.top/posts/csrss_base/</link>
+      <pubDate>Tue, 10 Jan 2023 17:07:41 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/csrss_base/</guid>
+      <description>0. Preface This is an incomplete introduction to CSRSS. Since I was analyzing CSRSS-related vulnerabilities recently, I organized some related knowledge. Therefore, you cannot fully understand CSRSS solely through this article. However, if this article can answer some of your questions while learning about CSRSS, then its purpose has been achieved. 1. Historical Background 1.1 Concept of Microkernel A microkernel refers to the core part of a modern, modular operating</description>
+    </item>
+    
+    <item>
+      <title>x64 Paging Mechanism</title>
+      <link>https://www.zoemurmure.top/posts/x64_paging/</link>
+      <pubDate>Tue, 10 Jan 2023 15:09:38 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/x64_paging/</guid>
+      <description>Preface During the process of learning HEVD (HackSys Extreme Vulnerable Driver), I found there were many concepts I didn&amp;rsquo;t fully understand, which prompted this article. The content is translated from reference^[1]^, with minor adjustments to the content and structure for learning purposes. Basic Definitions First, let us clarify the reason for the existence of paging: it is to implement virtual addresses, making the translation between virtual and physical addresses more</description>
+    </item>
+    
+  </channel>
+</rss>

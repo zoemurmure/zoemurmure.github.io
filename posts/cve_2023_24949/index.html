@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[CVE-2023-24949] Windows Kernel Elevation of Privilege Vulnerability Analysis - Logic Security</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="CVE-2023-24949 Windows 内核提权漏洞分析">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/posts/history_posts/">
+				
+				<span class="menu__text">Collection of Historical Posts</span>
+				
+			</a>
+		</li>
+		
+		
+		
+			
+				<li class="menu__item menu__item--active">
+					<a class="menu__link" href="/posts/cve_2023_24949/">
+						<span class="menu__text" style="font-weight: bold;">English</span>
+					</a>
+				</li>
+			
+				<li class="menu__item">
+					<a class="menu__link" href="/zh/posts/cve_2023_24949/">
+						<span class="menu__text" style="">中文</span>
+					</a>
+				</li>
+			
+		
+	</ul>
+</nav>
+
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[CVE-2023-24949] Windows Kernel Elevation of Privilege Vulnerability Analysis</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-06-12T16:57:51&#43;08:00">June 12, 2023</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    
+        <span class="post-date">3252 words</span>, <span class="more-meta">7 min read</span>
+    
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90/" rel="category">漏洞分析</a>
+	</span>
+</div></div>
+		</header>
+		<div class="content post__content clearfix">
+			<h2 id="0-introduction">0. Introduction</h2>
+<p>This article introduces the CVE-2023-24949 vulnerability, whose full English name is &ldquo;Windows Kernel Elevation of Privilege Vulnerability&rdquo;, indicating that the vulnerability is located in <code>ntoskrnl.exe</code>. According to the official advisory, an attacker can exploit this vulnerability to achieve local privilege escalation.</p>
+<p>This post describes the vulnerability based on my personal analysis workflow. Through patch comparison, function analysis, and function debugging, the vulnerability mechanism and trigger method were determined, and the vulnerability was successfully triggered. Finally, a brief summary is provided.</p>
+<h2 id="1-patch-comparison">1. Patch Comparison</h2>
+<p>Checking <code>ntoskrnl.exe</code> before and after the patch, a total of three functions were modified.</p>
+<p><img src="/img/2023-05-18-11-12-48.png" alt=""></p>
+<p>Among them:</p>
+<p><code>IoInitSystemPreDrivers</code> adjusted some code structures, reducing nested conditional statements, and refactored some code into a new function, with no functional changes;</p>
+<p><code>PopTransitionSystemPowerStateEx</code> also had no observable functional changes;</p>
+<p>The issue resides in the <code>MiCaptureRetpolineRelocationTables</code> function:</p>
+<p><em>Note: For ease of understanding, I am directly pasting the version of the function where variable names and data structures have been cleaned up after performing the functional analysis.</em></p>
+<p><img src="/img/2023-06-08-14-44-26.png" alt=""></p>
+<p>Note that the position enclosed in the yellow box is where the patch was applied. Before the patch, it first added three numbers together, then checked if the addition result was greater than one of the addends to determine if an overflow occurred. After the patch, the addition of the three numbers is split into two steps, and each addition operation is performed by calling <code>RtlULongAdd</code>. This function contains a check to see if the addition result is greater than the augend:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>NTSTATUS <span style="color:#66d9ef">__stdcall</span> <span style="color:#a6e22e">RtlULongAdd</span>(ULONG ulAugend, ULONG ulAddend, ULONG <span style="color:#f92672">*</span>pulResult)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  ULONG v3; <span style="color:#75715e">// eax
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  ULONG result; <span style="color:#75715e">// edx
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  NTSTATUS status; <span style="color:#75715e">// eax
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>  v3 <span style="color:#f92672">=</span> ulAugend <span style="color:#f92672">+</span> ulAddend;
+</span></span><span style="display:flex;"><span>  result <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( v3 <span style="color:#f92672">&gt;=</span> ulAugend )
+</span></span><span style="display:flex;"><span>    result <span style="color:#f92672">=</span> v3;
+</span></span><span style="display:flex;"><span>  status <span style="color:#f92672">=</span> v3 <span style="color:#f92672">&lt;</span> ulAugend <span style="color:#f92672">?</span> <span style="color:#ae81ff">0xC0000095</span> <span style="color:#f92672">:</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">*</span>pulResult <span style="color:#f92672">=</span> result;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> status;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>From this, it can be seen that this is actually an integer overflow issue. Before the patch, it only checked whether the addend <code>imageDynamicRelocationRva</code> overflowed after being added to the other two numbers, but did not check whether the addition of the addends <code>baseRelocSize</code> and <code>12</code> overflowed.</p>
+<p>Note the green box in the screenshot. In the subsequent code, <code>baseRelocSize + 12</code> is used as the size parameter for memory allocation and data copying. Although not visible in the screenshot, the three addends in the addition operation are originally 4-byte data, and the result of the addition is also 4-byte data. However, on 64-bit systems, the registers storing this data are actually 64-bit, and the parameters representing data size in the <code>MiAllocatePool</code> function and the <code>memmove</code> function are of type <code>size_t</code>, which are also 64-bit. Therefore, if the size parameter <code>baseRelocSize + 12</code> overflows, it can bypass the <code>curRetRelocRva &gt; endOfTable</code> check above, resulting in <code>memmove</code> accessing data far beyond the legitimate range.</p>
+<h2 id="2-functional-analysis-of-the-function">2. Functional Analysis of the Function</h2>
+<p>The screenshot above shows the variables renamed and relevant data structures imported. However, at the beginning of the analysis, all variable names were formatted as <code>v*</code>, making the function&rsquo;s purpose completely opaque. Therefore, after analyzing the patch, I first analyzed the functionality of the function.</p>
+<h3 id="21-initial-attempts">2.1 Initial Attempts</h3>
+<p>Judging from the function name, this function is related to Retpoline, which is a mechanism used to mitigate Spectre vulnerability variants. Furthermore, according to the function references, it is called by <code>MiParseImageLoadConfig</code>, which seems related to the loading of executable files, but I wasn&rsquo;t certain.</p>
+<p>I had some superficial knowledge of these two types of vulnerabilities, but I didn&rsquo;t know the relationship between Retpoline and executable loading, so I began some aimless searches.</p>
+<p>While searching for keywords like &ldquo;Retpoline&rdquo; and &ldquo;relocation table&rdquo;, I discovered an introduction to the Dynamic Value Relocation Table (DVRT) [1] and its linked documentation for the Load Configuration Directory [2]. Everything suddenly became clear.</p>
+<h3 id="22-introduction-of-related-concepts">2.2 Introduction of Related Concepts</h3>
+<p>Spectre is a hardware-related vulnerability that exploits the CPU&rsquo;s branch prediction mechanism to leak sensitive data. Retpoline is a CPU mitigation mechanism developed by Google to address this issue.</p>
+<p>In the original CPU branch prediction mechanism, the CPU predicts the target address of a branch jump based on previously executed instructions and performs speculative execution. However, an attacker can construct specific code sequences to cause the CPU to mispredict the branch, thereby accessing protected data.</p>
+<p>The Retpoline mechanism uses a pattern similar to a jump table to convert branch jump operations into indirect, non-speculative jumps, thereby avoiding the use of CPU branch prediction.</p>
+<p>The Retpoline translation is executed dynamically when the kernel module is loaded into memory. But how does the operating system know where to perform this translation? The answer is that all the information is stored in the Dynamic Value Relocation Table (DVRT), which can be retrieved through the binary&rsquo;s load config directory.</p>
+<p>The DVRT is embedded into the binary during compilation. The compiler stores all metadata related to indirect jumps/calls into the <code>.reloc</code> section of the file. When the file runs, the kernel parses the DVRT data and performs translations for all saved branch jumps.</p>
+<h3 id="23-dvrt-related-data-structures">2.3 DVRT-Related Data Structures</h3>
+<p>First is the format of the DVRT itself. I have only listed two data structures, as they can be imported into IDA to help analyze the vulnerable function:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">// DVRT Header
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">ImageDynamicRelocationTable</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">uint32_t</span> version;   <span style="color:#75715e">// Currently only version 1 exists
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">uint32_t</span> size;      <span style="color:#75715e">// Size of the retpoline information data following the header
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// Based on different retpoline types, there is a header at the start of each block
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">ImageDynamicRelocation</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">uint64_t</span> symbol;          <span style="color:#75715e">// Represents the retpoline type, optional values are 3, 4, 5
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">uint32_t</span> baseRelocSize;   <span style="color:#75715e">// Size of the retpoline information data of this type following the header
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>};
+</span></span></code></pre></div><p>Next is the <code>_IMAGE_LOAD_CONFIG_DIRECTORY64</code> structure, which is used to locate the DVRT. It can also be imported into IDA. The relevant fields will be explained when we use this data structure later:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">_IMAGE_LOAD_CONFIG_CODE_INTEGRITY</span> {
+</span></span><span style="display:flex;"><span>   WORD Flags;           
+</span></span><span style="display:flex;"><span>   WORD Catalog;         
+</span></span><span style="display:flex;"><span>   DWORD CatalogOffset;  
+</span></span><span style="display:flex;"><span>   DWORD Reserved;       
+</span></span><span style="display:flex;"><span>};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">_IMAGE_LOAD_CONFIG_DIRECTORY64</span> {
+</span></span><span style="display:flex;"><span>   DWORD Size;           
+</span></span><span style="display:flex;"><span>   DWORD TimeDateStamp; 
+</span></span><span style="display:flex;"><span>   WORD MajorVersion;    
+</span></span><span style="display:flex;"><span>   WORD MinorVersion;    
+</span></span><span style="display:flex;"><span>   DWORD GlobalFlagsClear;
+</span></span><span style="display:flex;"><span>   DWORD GlobalFlagsSet;   
+</span></span><span style="display:flex;"><span>   DWORD CriticalSectionDefaultTimeout; 
+</span></span><span style="display:flex;"><span>   ULONGLONG DeCommitFreeBlockThreshold; 
+</span></span><span style="display:flex;"><span>   ULONGLONG DeCommitTotalFreeThreshold;
+</span></span><span style="display:flex;"><span>   ULONGLONG LockPrefixTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG MaximumAllocationSize;
+</span></span><span style="display:flex;"><span>   ULONGLONG VirtualMemoryThreshold; 
+</span></span><span style="display:flex;"><span>   ULONGLONG ProcessAffinityMask;
+</span></span><span style="display:flex;"><span>   DWORD ProcessHeapFlags; 
+</span></span><span style="display:flex;"><span>   WORD CSDVersion;     
+</span></span><span style="display:flex;"><span>   WORD DependentLoadFlags;
+</span></span><span style="display:flex;"><span>   ULONGLONG EditList;        
+</span></span><span style="display:flex;"><span>   ULONGLONG SecurityCookie;  
+</span></span><span style="display:flex;"><span>   ULONGLONG SEHandlerTable;   
+</span></span><span style="display:flex;"><span>   ULONGLONG SEHandlerCount;   
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardCFCheckFunctionPointer; 
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardCFDispatchFunctionPointer;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardCFFunctionTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardCFFunctionCount;
+</span></span><span style="display:flex;"><span>   DWORD GuardFlags;     
+</span></span><span style="display:flex;"><span>   _IMAGE_LOAD_CONFIG_CODE_INTEGRITY CodeIntegrity;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardAddressTakenIatEntryTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardAddressTakenIatEntryCount;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardLongJumpTargetTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardLongJumpTargetCount;
+</span></span><span style="display:flex;"><span>   ULONGLONG DynamicValueRelocTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG CHPEMetadataPointer;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardRFFailureRoutine;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardRFFailureRoutineFunctionPointer;
+</span></span><span style="display:flex;"><span>   DWORD DynamicValueRelocTableOffset;
+</span></span><span style="display:flex;"><span>   WORD DynamicValueRelocTableSection;
+</span></span><span style="display:flex;"><span>   WORD Reserved2;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardRFVerifyStackPointerFunctionPointer;
+</span></span><span style="display:flex;"><span>   DWORD HotPatchTableOffset;
+</span></span><span style="display:flex;"><span>   DWORD Reserved3;
+</span></span><span style="display:flex;"><span>   ULONGLONG EnclaveConfigurationPointer;
+</span></span><span style="display:flex;"><span>   ULONGLONG VolatileMetadataPointer;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardEHContinuationTable;
+</span></span><span style="display:flex;"><span>   ULONGLONG GuardEHContinuationCount;
+</span></span><span style="display:flex;"><span> };
+</span></span></code></pre></div><h3 id="24-summary">2.4 Summary</h3>
+<p>Based on the above information, we can determine that the vulnerable function is used to retrieve the DVRT during the load config phase. By looking at its callers and the other function parameters executed before the call, we can determine the types and functions of most variables in the vulnerable function, ultimately obtaining the function state shown in the screenshot at the beginning of the article.</p>
+<h2 id="3-vulnerability-triggering">3. Vulnerability Triggering</h2>
+<h3 id="31-determining-the-approach">3.1 Determining the Approach</h3>
+<p>To trigger the vulnerability, we first need to know how to reach the vulnerable function. When checking references to <code>MiCaptureRetpolineRelocationTables</code>, we find two functions call it:</p>
+<p><img src="/img/2023-05-19-17-52-56.png" alt=""></p>
+<p>ChatGPT&rsquo;s explanation of these two functions is as follows:</p>
+<blockquote>
+<p><code>MiParseImageLoadConfig</code> is a function in the NT kernel of the Windows operating system used to parse the load configuration information of executable files. In Windows, executable files usually contain load configuration information that instructs the operating system how to load the file into memory and how to initialize the data and code inside.
+The <code>MiParseImageLoadConfig</code> function is primarily used during the kernel module loading process. It reads the load configuration information from the executable file and performs appropriate memory allocation and initialization based on this information. Specifically, <code>MiParseImageLoadConfig</code> can complete the following tasks:</p>
+<ol>
+<li>Parse the load configuration information in the executable, including base address, size, checksum, etc.</li>
+<li>Calculate the required memory size and location based on the load configuration information, and allocate the corresponding virtual memory area.</li>
+<li>Copy code, data, and other parts from the executable file to the allocated memory area, and perform necessary relocation and initialization work.</li>
+</ol>
+<p>Note that <code>MiParseImageLoadConfig</code> is a low-level function in the Windows kernel and is not usually called directly by applications. It is mainly called by other kernel module-related functions to complete the loading and initialization of executables.</p>
+<p><code>MiCaptureBootDriverRetpolineInfo</code> is a function in the NT kernel of the Windows operating system used to capture Retpoline information of boot drivers. In Windows, Retpoline is a special code transformation technique used to mitigate security risks caused by Spectre and similar CPU vulnerabilities.
+Specifically, when a driver is loaded into memory, <code>MiCaptureBootDriverRetpolineInfo</code> scans its code section and generates a corresponding jump target address table for the Retpoline calls contained within. This jump target address table can be used to replace the original Retpoline jumps, thereby improving code execution efficiency and security.
+Note that <code>MiCaptureBootDriverRetpolineInfo</code> is only called during the boot process. It is mainly used to capture Retpoline information of boot drivers for use in subsequent operations. Retpoline information for other drivers is captured and processed during loading.</p>
+</blockquote>
+<p>It seems that one function is called when executables are loaded, and the other is called during the system boot process. Obviously, the former is easier to analyze.</p>
+<p>Despite thinking this way, I was not sure about the accuracy of the above information, nor did I know if my understanding was correct. Therefore, I set breakpoints on both functions separately and tried to interact with the operating system to see if they would break.</p>
+<p>Subsequently, I found that when browsing files in Explorer, the system could easily trigger breakpoints multiple times in <code>MiParseImageLoadConfig</code>, but no breakpoints were hit in <code>MiCaptureBootDriverRetpolineInfo</code>. Therefore, I chose the <code>MiParseImageLoadConfig</code> call chain as the target of analysis.</p>
+<h3 id="32-locating-the-dvrt">3.2 Locating the DVRT</h3>
+<p>Currently, there is no public documentation describing the PE file structure containing DVRT information. Moreover, when testing system breakpoints earlier, I also set a breakpoint on the vulnerable function itself, but it was never hit. Thus, I could not determine the location of the DVRT information by analyzing existing files.</p>
+<p><em>Note: Later I found that it was actually relatively easy to hit the breakpoint in the vulnerable function in the system folder, but because there were too many files, I couldn&rsquo;t be sure which file contained the DVRT information.</em></p>
+<p>Initially, I tried to compile a program with DVRT directly using Visual Studio features, but failed. Unsure if VS supports this functionality natively, I decided to create an arbitrary program and directly modify the file content using a hex editor, so that the system would reach the vulnerable location when processing this file.</p>
+<p>I used Visual Studio to create an Empty Project (C++), with arbitrary content. I only wrote an empty <code>main</code> function and compiled it to generate the <code>.exe</code> file.</p>
+<p>First, I tested with this file to see how far the system code could execute. Setting a breakpoint on <code>MiCaptureRetpolineRelocationTables</code> did not trigger any hits, but setting a breakpoint on <code>MiParseImageLoadConfig</code> triggered multiple hits, making it impossible to determine which hit was caused by the test file.</p>
+<p>By analyzing in IDA, I found that before calling <code>MiCaptureRetpolineRelocationTables</code>, the system first calls <code>MiCaptureDynamicRelocationTableRva</code>. Only if this function succeeds will execution proceed. Therefore, I set a breakpoint at the call location of this function and placed the test file in an isolated folder. When I opened this folder in File Explorer, the system hit the breakpoint at the call of <code>MiCaptureDynamicRelocationTableRva</code>, indicating that this normally generated test file could at least reach <code>MiCaptureDynamicRelocationTableRva</code>.</p>
+<p><code>MiCaptureDynamicRelocationTableRva</code> is defined as follows:</p>
+<p><img src="/img/2023-06-09-11-52-13.png" alt=""></p>
+<p><em>Note: The type of the variable <code>configDirec</code> was my guess based on the function&rsquo;s purpose and the DVRT-related data structures. After setting it, I found that the <code>_IMAGE_LOAD_CONFIG_DIRECTORY64</code> type indeed satisfies the function&rsquo;s requirements.</em></p>
+<p>Note the comments in the image: to make this function execute successfully, we need the <code>DynamicValueRelocTableSection</code> field to be non-zero.</p>
+<p>But how do we determine the location of <code>DynamicValueRelocTableSection</code> in the file? We can use the <code>dumpbin.exe</code> tool provided by Visual Studio. The output is as follows:</p>
+<pre tabindex="0"><code>PS C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.35.32215\bin\Hostx64\x86&gt; ./dumpbin.exe /loadconfig [Redacted File Path]
+Microsoft (R) COFF/PE Dumper Version 14.35.32216.1
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file [Redacted File Path]
+
+File Type: EXECUTABLE IMAGE
+
+  Section contains the following load config:
+
+            00000140 size
+                   0 time date stamp
+                0.00 Version
+                   0 GlobalFlags Clear
+                   0 GlobalFlags Set
+                   0 Critical Section Default Timeout
+                   0 Decommit Free Block Threshold
+                   0 Decommit Total Free Threshold
+     0000000000000000 Lock Prefix Table
+                    0 Maximum Allocation Size
+                    0 Virtual Memory Threshold
+                    0 Process Affinity Mask
+                    0 Process Heap Flags
+                    0 CSD Version
+                 0000 Dependent Load Flag
+     0000000000000000 Edit List
+     0000000140003008 Security Cookie
+     0000000140002190 Guard CF address of check-function pointer
+     00000001400021A0 Guard CF address of dispatch-function pointer
+     0000000000000000 Guard CF function table
+                    0 Guard CF function count
+             00000100 Guard Flags
+                        CF instrumented
+                 0000 Code Integrity Flags
+                 0000 Code Integrity Catalog
+             00000000 Code Integrity Catalog Offset
+             00000000 Code Integrity Reserved
+     0000000000000000 Guard CF address taken IAT entry table
+                    0 Guard CF address taken IAT entry count
+     0000000000000000 Guard CF long jump target table
+                    0 Guard CF long jump target count
+     0000000000000000 Dynamic value relocation table
+     0000000000000000 Hybrid metadata pointer
+     0000000000000000 Guard RF address of failure-function
+     0000000000000000 Guard RF address of failure-function pointer
+             00000000 Dynamic value relocation table offset
+                 0000 Dynamic value relocation table section
+.....
+</code></pre><p>Note that both <code>Dynamic value relocation table offset</code> and <code>Dynamic value relocation table section</code> in the file are <code>0</code>. This is what we plan to modify.</p>
+<p>To locate this content in the file, we can search for the <code>0000000140003008 Security Cookie</code> field, as its value is relatively unique and unlikely to repeat. We eventually locate it at the following position:</p>
+<p><img src="/img/2023-06-09-12-08-22.png" alt=""></p>
+<p>According to the structure of <code>_IMAGE_LOAD_CONFIG_DIRECTORY64</code>, we determine the starting position of the configuration information in the red box and locate the DVRT information to be modified. The first four bytes represent the offset, and the next four bytes represent the section. We need to modify the last four bytes to make them non-zero. Since this binary has 6 sections, this value cannot be greater than 6. We can simply change this value to 1.</p>
+<p>The modified file cannot reach the vulnerability point yet, but at this stage, we can debug first to verify the values of the relevant variables. Combined with the screenshot of the <code>MiCaptureDynamicRelocationTableRva</code> function above, after the system calculates the <code>sectionHeader</code>, checking this value reveals that it points to the first section header <code>.text</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">// sectionHeader
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>nt<span style="color:#f92672">!</span>MiCaptureDynamicRelocationTableRva<span style="color:#f92672">+</span><span style="color:#ae81ff">0xeb</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span><span style="color:#ae81ff">7e9249</span>f7 <span style="color:#ae81ff">493</span>bf8          cmp     rdi,r8
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">0</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> db r8
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090208  <span style="color:#ae81ff">2</span>e <span style="color:#ae81ff">74</span> <span style="color:#ae81ff">65</span> <span style="color:#ae81ff">78</span> <span style="color:#ae81ff">74</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">0</span>c <span style="color:#ae81ff">0</span>d <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">10</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  .text...........
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090218  <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">0</span>e <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  ................
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090228  <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">20</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">60</span><span style="color:#f92672">-</span><span style="color:#ae81ff">2</span>e <span style="color:#ae81ff">72</span> <span style="color:#ae81ff">64</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">74</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  .... ..<span style="color:#960050;background-color:#1e0010">`</span>.rdata..
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090238  b4 <span style="color:#ae81ff">0</span>e <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">20</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">00</span> <span style="color:#ae81ff">10</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">12</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  ..... ..........
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090248  <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">40</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">40</span>  ............<span style="color:#960050;background-color:#1e0010">@</span>..<span style="color:#960050;background-color:#1e0010">@</span>
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090258  <span style="color:#ae81ff">2</span>e <span style="color:#ae81ff">64</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">74</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">38</span> <span style="color:#ae81ff">06</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">30</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  .data..<span style="color:#ae81ff">.8</span>...<span style="color:#ae81ff">.0</span>..
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090268  <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">02</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">22</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span><span style="color:#f92672">-</span><span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  .....<span style="color:#e6db74">&#34;..........</span>
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span>d4090278  <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">40</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> c0<span style="color:#f92672">-</span><span style="color:#ae81ff">2</span>e <span style="color:#ae81ff">70</span> <span style="color:#ae81ff">64</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">74</span> <span style="color:#ae81ff">61</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>  ....<span style="color:#960050;background-color:#1e0010">@</span>....pdata..
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// Calculated DVRT RVA
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#ae81ff">0</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> p
+</span></span><span style="display:flex;"><span>nt<span style="color:#f92672">!</span>MiCaptureDynamicRelocationTableRva<span style="color:#f92672">+</span><span style="color:#ae81ff">0x100</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>fffff805<span style="color:#960050;background-color:#1e0010">`</span><span style="color:#ae81ff">7e924</span>a0c <span style="color:#ae81ff">41890</span>e          mov     dword ptr [r14],ecx
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">0</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> r rcx
+</span></span><span style="display:flex;"><span>rcx<span style="color:#f92672">=</span><span style="color:#ae81ff">0000000000001000</span>
+</span></span></code></pre></div><p>Continuing execution leads into the <code>MiCaptureRetpolineRelocationTables</code> function. The DVRT obtained based on the calculated RVA value is as follows:</p>
+<pre tabindex="0"><code>0: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0x76:
+fffff805`7e9254de 4a8b043b        mov     rax,qword ptr [rbx+r15]
+0: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0x7a:
+fffff805`7e9254e2 4889442420      mov     qword ptr [rsp+20h],rax
+2: kd&gt; db rbx+r15
+fffff805`d4091000  b8 01 00 00 00 c3 cc cc-cc cc cc cc cc cc cc cc  ................
+fffff805`d4091010  cc cc cc cc cc cc 66 66-0f 1f 84 00 00 00 00 00  ......ff........
+fffff805`d4091020  48 3b 0d e1 1f 00 00 75-10 48 c1 c1 10 66 f7 c1  H;.....u.H...f..
+fffff805`d4091030  ff ff 75 01 c3 48 c1 c9-10 e9 aa 02 00 00 cc cc  ..u..H..........
+fffff805`d4091040  40 53 48 83 ec 20 b9 01-00 00 00 e8 be 0b 00 00  @SH.. ..........
+fffff805`d4091050  e8 db 06 00 00 8b c8 e8-e8 0b 00 00 e8 cb 06 00  ................
+fffff805`d4091060  00 8b d8 e8 0c 0c 00 00-b9 01 00 00 00 89 18 e8  ................
+fffff805`d4091070  44 04 00 00 84 c0 74 73-e8 37 09 00 00 48 8d 0d  D.....ts.7...H..
+</code></pre><p>Searching for this data in the test file, we find that it is the starting content of the <code>.text</code> section:</p>
+<p><img src="/img/2023-06-09-15-19-34.png" alt=""></p>
+<p>Based on the introduction to the DVRT data structure above, we know that if this data is parsed as a DVRT, it starts with an 8-byte <code>ImageDynamicRelocationTable</code> structure, followed by a 12-byte <code>ImageDynamicRelocation</code> structure.</p>
+<p>At this point, although we do not know the exact structure of a PE file that genuinely contains a DVRT, we can successfully spoof the system into believing our test file has a DVRT, and we know the location where the system expects the DVRT to reside in the file.</p>
+<h3 id="33-analyzing-trigger-conditions--attempting-to-trigger-the-vulnerability">3.3 Analyzing Trigger Conditions &amp; Attempting to Trigger the Vulnerability</h3>
+<p>Let&rsquo;s look at the details of the <code>MiCaptureRetpolineRelocationTables</code> function to determine the requirements the DVRT must meet:</p>
+<p><img src="/img/2023-06-09-15-32-07.png" alt=""></p>
+<p>Note the parts enclosed in the yellow boxes, and modify the data in the test file accordingly:</p>
+<p><img src="/img/2023-06-09-15-32-49.png" alt=""></p>
+<p>At this point, the test file should be modified. However, when testing again, the system did not crash, and the debugger showed the following message:</p>
+<pre tabindex="0"><code>SXS: BasepCreateActCtx() NtCreateSection() failed. Status = 0xc000009a
+</code></pre><p>Stepping through <code>MiCaptureRetpolineRelocationTables</code> again, we find that an integer overflow indeed occurs when the system executes the addition of the three values:</p>
+<pre tabindex="0"><code>3: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0xfe:
+fffff805`7e925566 4503f4          add     r14d,r12d
+3: kd&gt; r r14d
+r14d=1014
+3: kd&gt; r r12d
+r12d=ffffffff
+3: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0x101:
+fffff805`7e925569 443bf2          cmp     r14d,edx
+3: kd&gt; r r14d
+r14d=1013
+</code></pre><p>However, when the system executed the <code>MiAllocatePool</code> function, the allocation failed. Let&rsquo;s look closely at the arguments for this function call:</p>
+<pre tabindex="0"><code>3: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0x181:
+fffff805`7e9255e9 e832ddb1ff      call    nt!MiAllocatePool (fffff805`7e443320)
+3: kd&gt; r rcx
+rcx=0000000000000100
+3: kd&gt; r rdx
+rdx=000000010000000b
+</code></pre><p><code>rdx</code> should be the allocation size. As we suspected, due to the integer overflow, it attempts to allocate an extremely large memory block. This is where the issue lies; because my virtual machine did not have enough RAM, this function call failed.</p>
+<p>After increasing the virtual machine&rsquo;s memory, the allocation succeeded, and execution proceeded to the data copying operation:</p>
+<pre tabindex="0"><code>0: kd&gt; p
+nt!MiCaptureRetpolineRelocationTables+0x19d:
+fffff805`7e925605 e83619d0ff      call    nt!memcpy (fffff805`7e626f40)
+0: kd&gt; r rcx
+rcx=ffffd6001c000000
+0: kd&gt; r rdx
+rdx=fffff805e5631008
+0: kd&gt; r r8
+r8=000000010000000b
+</code></pre><p>It likewise attempts to copy a massive amount of data, with the source address <code>fffff805e5631008</code> and the size <code>10000000b</code>. Due to accessing invalid memory space, the system crashed.</p>
+<p><img src="/img/2023-06-09-17-12-15.png" alt=""></p>
+<h2 id="4-summary">4. Summary</h2>
+<p>Based on the analysis above, CVE-2023-24949 is an integer overflow vulnerability. Up to the point of my analysis, this vulnerability can achieve an out-of-bounds memory read. Further analysis is required to achieve local privilege escalation.</p>
+<p>It is worth noting that the trigger condition for this vulnerability is extremely simple. Assuming sufficient memory, merely viewing the test file in File Explorer can trigger the vulnerability. If the test file is placed on the Desktop, the system will fail to boot normally. If combined with phishing attacks, this vulnerability could achieve more impact. Given this, the PoC file will not be directly published on GitHub; interested readers can attempt replication themselves based on this article.</p>
+<h2 id="5-references">5. References</h2>
+<ol>
+<li><a href="https://denuvosoftwaresolutions.github.io/DVRT/dvrt.html">Dynamic Value Relocation Table (DVRT) details</a></li>
+<li><a href="https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#the-load-configuration-structure-image-only">Windows PE32 load config directory</a></li>
+<li><a href="https://denuvosoftwaresolutions.github.io/DVRT/haunted">How Meltdown and Spectre haunt Anti-Cheat</a></li>
+<li><a href="https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-24949">https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-24949</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/cve/" rel="tag">cve</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/poc/" rel="tag">poc</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+
+
+
+
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2026 Logic Security.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+</body>
+</html>

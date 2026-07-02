@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>history on Logic Security 逻辑门</title>
+    <link>https://www.zoemurmure.top/zh/archives/history/</link>
+    <description>Recent content in history on Logic Security 逻辑门</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh</language>
+    <lastBuildDate>Tue, 10 Jan 2023 11:14:05 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/zh/archives/history/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>历史文章合集</title>
+      <link>https://www.zoemurmure.top/zh/posts/history_posts/</link>
+      <pubDate>Tue, 10 Jan 2023 11:14:05 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/zh/posts/history_posts/</guid>
+      <description>我之前的文章基本都发表在看雪： 看雪文章合集</description>
+    </item>
+    
+  </channel>
+</rss>

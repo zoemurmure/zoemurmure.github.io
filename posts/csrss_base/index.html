@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>CSRSS Basics - Logic Security</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/posts/history_posts/">
+				
+				<span class="menu__text">Collection of Historical Posts</span>
+				
+			</a>
+		</li>
+		
+		
+		
+			
+				<li class="menu__item menu__item--active">
+					<a class="menu__link" href="/posts/csrss_base/">
+						<span class="menu__text" style="font-weight: bold;">English</span>
+					</a>
+				</li>
+			
+				<li class="menu__item">
+					<a class="menu__link" href="/zh/posts/csrss_base/">
+						<span class="menu__text" style="">中文</span>
+					</a>
+				</li>
+			
+		
+	</ul>
+</nav>
+
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">CSRSS Basics</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-01-10T17:07:41&#43;08:00">January 10, 2023</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    
+        <span class="post-date">2982 words</span>, <span class="more-meta">6 min read</span>
+    
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/" rel="category">基础知识</a>
+	</span>
+</div></div>
+		</header>
+		<div class="content post__content clearfix">
+			<h2 id="0-preface">0. Preface</h2>
+<p>This is an incomplete introduction to CSRSS. Since I was analyzing CSRSS-related vulnerabilities recently, I organized some related knowledge. Therefore, you cannot fully understand CSRSS solely through this article. However, if this article can answer some of your questions while learning about CSRSS, then its purpose has been achieved.</p>
+<h2 id="1-historical-background">1. Historical Background</h2>
+<h3 id="11-concept-of-microkernel">1.1 Concept of Microkernel</h3>
+<p>A microkernel refers to the core part of a modern, modular operating system. A microkernel operating system follows two main principles:</p>
+<ol>
+<li>Modularity, encapsulation, and data hiding. That is, only one part of the operating system has system-wide responsibility for a specific function, and other parts of the OS (including applications) can only use this function through defined interfaces.</li>
+<li>Most functions of the operating system execute in user/application mode, with only the microkernel itself and a small portion of hardware-related code executing in kernel mode.</li>
+</ol>
+<p>An operating system that adheres to both principles is called a pure microkernel system. An operating system that only follows the first principle but not the second is called a modified microkernel or monolithic kernel (macrokernel) operating system. Commercial operating systems are generally not designed based on pure microkernels because such architectures incur too much computational overhead.</p>
+<p>Windows NT is a modified microkernel system, exhibiting excellent modularity and encapsulation. On the other hand, since its initial release, Windows NT has implemented high-performance operating system subsystems in kernel mode. These subsystems can interact with hardware and each other in kernel mode without affecting processor mode and process/thread transition performance. Implemented as kernel-mode subsystems are the memory manager, integrated cache manager, file system, object/security manager, network protocols, network servers, and all thread/process management.</p>
+<p>However, prior to Windows NT 4.0, one area remained in pure microkernel mode: the window manager and graphics subsystem, which are used to implement the GUI portion of the Win32 API. In Windows NT 3.51 and earlier, the window manager and GDI were implemented as a separate user-mode process called the Client-Server Subsystem (csrss.exe).</p>
+<h3 id="12-win32-subsystem">1.2 Win32 Subsystem</h3>
+<p>During the initial design phase of Windows NT, Win32 was designed to be equivalent to OS/2, POSIX, and other planned operating system environments. Each of these subsystems ran as an independent environment. However, this design would lead to significant duplication of system functionality, affecting system size and performance. To avoid duplication and respond to market trends, in the finalized release of Windows NT 3.1, the Win32 subsystem became a special privileged &ldquo;program&rdquo; on which all other subsystems and the entire operating system depended.</p>
+<p>Prior to Windows NT 4.0, the Win32 subsystem contained 5 modules residing in different DLL files:</p>
+<ul>
+<li>Window Manager: Handles input and screen I/O;</li>
+<li>Graphics Device Interface (GDI): Drawing library for graphics output devices;</li>
+<li>Graphics Device Driver (GDD): Hardware-dependent graphics driver;</li>
+<li>Console: Provides text window support;</li>
+<li>Operating System Functions: Supports all components in the subsystem.</li>
+</ul>
+<p>Placing graphics functionality in a separate Win32 server process incurred significant memory overhead and a large number of thread/process context switches, heavily impacting system performance. Since Windows NT is a window-based operating system with a high volume of graphics and window operations, starting from Windows NT 4.0, the design team moved these commonly used functions from user mode to kernel mode.</p>
+<p>In the modified system, the Window Manager, GDI, and GDD functions were moved into kernel mode (i.e., <code>win32k.sys</code>), while console, GUI shutdown, and hard error handling functions remained in the user-mode <code>csrss.exe</code>.</p>
+<p>In other words, in the operating systems we use today, <code>csrss.exe</code> + <code>win32k.sys</code> together constitute the Win32 operating system environment. Since most people (including myself) have never interacted with other operating system environments like OS/2 or POSIX, it is initially difficult to understand the functional positioning of <code>csrss.exe</code>.</p>
+<h2 id="2-communication">2. Communication</h2>
+<p>When a Windows process or thread starts, and during any Windows subsystem operations, ALPC is used to communicate with the subsystem process CSRSS. All subsystem communications with the Session Manager (SMSS) also take place via ALPC.</p>
+<p>ALPC, which stands for Advanced (or Asynchronous) Local Procedure Call, is a high-speed, scalable, and secure message-passing mechanism used to transfer messages of arbitrary size. It is generally used between a server process and multiple client processes of that server. ALPC connections can be established between multiple user-mode processes, between a kernel-mode component and multiple user-mode processes, or between two kernel-mode components. ALPC uses an executive object called a port object to maintain the state required for communication. This object can represent various ALPC ports:</p>
+<ul>
+<li>Server connection port: A named port that acts as the server&rsquo;s connection request point, through which clients can connect to the server;</li>
+<li>Server communication port: An unnamed port used by the server to communicate with one of its clients; the server provides one such port for each active client;</li>
+<li>Client communication port: An unnamed port used by a client to communicate with its server;</li>
+<li>Unconnected communication port: An unnamed port used by a client to communicate with itself locally. This model was deprecated during the transition from LPC to ALPC, but is still simulated for Legacy LPC due to compatibility reasons.</li>
+</ul>
+<p>ALPC follows a connection and communication model similar to BSD socket programming. The server first creates a server connection port (<code>NtAlpcCreatePort</code>), and the client can connect to this port (<code>NtAlpcConnectPort</code>). If the server is in listening mode (<code>NtAlpcSendWaitReceivePort</code>), it will receive a connection request message and can choose to accept the request (<code>NtAlpcAcceptConnectPort</code>). At this point, the client and server communication ports are established, and each corresponding endpoint process receives a handle to its communication port. Messages are then passed through these handles (<code>NtAlpcSendWaitReceivePort</code>). In the simplest scenario, a single server calls <code>NtAlpcSendWaitReceivePort</code> in a loop to accept connection requests or process/reply to messages. The server distinguishes messages using the <code>PORT_HEADER</code> structure, which resides at the outermost layer of every message and contains the message type.</p>
+<p>Once a connection is established, a connection information structure (blob) is used to store the associations between all the different ports.</p>
+<p><img src="/img/2022-12-02-16-24-27.png" alt=""></p>
+<p>In the description above, the client and server can only send requests and wait for responses by alternately calling <code>NtAlpcSendWaitReceivePort</code> in a blocking loop. However, ALPC also supports asynchronous messaging, allowing both communicating parties to avoid blocking and instead perform other tasks, checking for messages later. ALPC supports the following message exchange mechanisms:</p>
+<ul>
+<li>Standard double-buffering mechanism. The kernel retains a copy of the message by copying it from the source process, then transitions to the target process and copies the data from the kernel buffer. For compatibility reasons, if Legacy LPC is used, this method can send messages of at most 256 bytes, whereas ALPC can allocate extended buffers for messages up to 64 KB;</li>
+<li>Storing messages in an ALPC section object, where the client and server process the messages by mapping views;</li>
+</ul>
+<p>In asynchronous message mode, messages can be canceled—for example, if a request takes too long or if the user indicates they want to cancel the previous operation. The <code>NtAlpcCancelMessage</code> system call can be used in ALPC to cancel messages.</p>
+<p>An ALPC message can reside in one of the following five queues implemented by the ALPC port object:</p>
+<ul>
+<li>Main queue: The message has been sent, and the target is processing it;</li>
+<li>Pending queue: The message has been sent, the sender is waiting for a response, but the response has not yet been sent;</li>
+<li>Large message queue: The message has been sent, but the sender&rsquo;s buffer is too small to accommodate it; the sender then has the opportunity to allocate a larger buffer and request the message again;</li>
+<li>Canceled queue: The message was sent to the port but has been canceled;</li>
+<li>Direct queue: Messages sent with an attached direct event.</li>
+</ul>
+<h2 id="3-specific-functions">3. Specific Functions</h2>
+<p>By checking the module names loaded by <code>csrss.exe</code> in Process Hacker, we can find that the DLL files related to CSRSS functions include: <code>basesrv.dll</code> (Windows NT BASE API Server DLL), <code>winsrv.dll</code> (Multi-User Windows Server DLL), <code>csrsrv.dll</code> (Client Server Runtime Process), <code>sxssrv.dll</code> (Windows SxS Server DLL), and <code>sxs.dll</code>. The table below summarizes the <code>ServerApiDispatchTable</code> and exported functions contained in these files:</p>
+<pre tabindex="0"><code>              |  basesrv.dll                   | winsrv.dll                 | csrsrv.dll                  | sxssrv.dll | sxs.dll |
+----------------------------------------------------------------------------------------------------------------------------------
+              | BaseSrvCreateProcess           |                            |                             |            |         |
+              | BaseSrvDeadEntry               |                            |                             |            |         |
+              | BaseSrvCheckVDM                |                            |                             |            |         |
+              | BaseSrvUpdateVDMEntry          |                            |                             |            |         |
+              | BaseSrvGetNextVDMCommand       |                            |                             |            |         |
+              | BaseSrvExitVDM                 |                            |                             |            |         |
+              | BaseSrvIsFirstVDM              |                            |                             |            |         |
+              | BaseSrvGetVDMExitCode          |                            |                             |            |         |
+              | BaseSrvSetReenterCount         |                            |                             |            |         |
+              | BaseSrvSetProcessShutdownParam |                            |                             |            |         |
+              | BaseSrvGetProcessShutdownParam |                            |                             |            |         |
+              | BaseSrvSetVDMCurDirs           |                            |                             |            |         |
+Dispatch Table| BaseSrvGetVDMCurDirs           | SrvEndTask                 | CsrSrvClientConnect         |            |         |
+              | BaseSrvBatNotification         |                            |                             |            |         |
+              | BaseSrvRegisterWowExec         |                            |                             |            |         |
+              | BaseSrvSoundSentryNotification |                            |                             |            |         |
+              | BaseSrvRefreshIniFileMapping   |                            |                             |            |         |
+              | BaseSrvDefineDosDevice         |                            |                             |            |         |
+              | BaseSrvSetTermsrvAppInstallMode|                            |                             |            |         |
+              | BaseSrvSetTermsrvClientTimeZone|                            |                             |            |         |
+              | BaseSrvCreateActivationContext |                            |                             |            |         |
+              | BaseSrvRegisterThread          |                            |                             |            |         |
+              | BaseSrvDeferredCreateProcess   |                            |                             |            |         |
+              | BaseSrvNlsGetUserInfo          |                            |                             |            |         |
+              | BaseSrvNlsUpdateCacheCount     |                            |                             |            |         |
+              | BaseSrvCreateProcess2          |                            |                             |            |         |
+              | BaseSrvCreateActivationContext2|                            |                             |            |         |
+----------------------------------------------------------------------------------------------------------------------------------
+              |                                |                            | CsrAddStaticServerThread    |            |         |
+              |                                |                            | CsrCallServerFromServer     |            |         |
+              |                                |                            | CsrConnectToUser            |            |         |
+              |                                |                            | CsrCreateProcess            |            |         |
+              |                                |                            | CsrCreateRemoteThread       |            |         |
+              |                                |                            | CsrCreateThread             |            |         |
+              |                                |                            | CsrDeferredCreateProcess    |            |         |
+              |                                |                            | CsrDereferenceProcess       |            |         |
+              |                                |                            | CsrDereferenceThread        |            |         |
+              |                                |                            | CsrDestroyProcess           |            |         |
+              |                                |                            | CsrDestroyThread            |            |         |
+              |                                |                            | CsrExecServerThread         |            |         |
+              | BaseGetProcessCrtlRoutine      |                            | CsrGetProcessLuid           |            |         |
+              | BaseSetProcessCreateNotify     | SrvEndTask                 | CsrImpersonateClient        |            |         |
+              | BaseSrvNlsLogon                | UserCreateCallbackThread   | CsrIsClientSandboxed        |            |         |
+Export Func   | BaseSrvNlsUpdateRegistryCache  | UserHardError              | CsrLockProcessByClientId    |            |         |
+              | BaseSrvRegisterSxS             | UserServerDllInitialization| CsrLockThreadByClientId     |            |         |
+              | ServerDllInitialization        |                            | CsrLockedReferenceProcess   |            |         |
+              |                                |                            | CsrQueryApiPort             |            |         |
+              |                                |                            | CsrReferenceThread          |            |         |
+              |                                |                            | CsrRegisterClientThreadSetup|            |         |
+              |                                |                            | CsrReplyToMessage           |            |         |
+              |                                |                            | CsrRevertToSelf             |            |         |
+              |                                |                            | CsrServerInitialization     |            |         |
+              |                                |                            | CsrSetBackgroundPriority    |            |         |
+              |                                |                            | CsrSetForegroundPriority    |            |         |
+              |                                |                            | CsrShutdownProcesses        |            |         |
+              |                                |                            | CsrUnhandledExceptionFilter |            |         |
+              |                                |                            | CsrUnlockProcess            |            |         |
+              |                                |                            | CsrUnlockThread             |            |         |
+              |                                |                            | CsrValidateMessageBuffer    |            |         |
+              |                                |                            | CsrValidateMessageString    |            |         |
+----------------------------------------------------------------------------------------------------------------------------------
+</code></pre><p>In Windows Vista and later systems, multiple <code>csrss.exe</code> processes can exist. One <code>csrss.exe</code> process is created by the Session Manager (<code>smss.exe</code>) during system startup to handle requests from session-0 modules and exists throughout the system lifecycle; if this process crashes, the entire system crashes. The remaining <code>csrss.exe</code> processes are created by <code>smss.exe</code> when a user logs on. They are responsible for handling requests from applications under that user session and exist only during the user&rsquo;s login session; a crash of these processes will not cause the system to crash. All <code>csrss.exe</code> processes run with the highest user privileges: <code>NT AUTHORITY\SYSTEM</code>.</p>
+<pre tabindex="0"><code>1: kd&gt; dt csrss!_csr_process 
+   +0x000 ClientId         : _CLIENT_ID
+   +0x010 ListLink         : _LIST_ENTRY
+   +0x020 ThreadList       : _LIST_ENTRY
+   +0x030 NtSession        : Ptr64 _CSR_NT_SESSION
+   +0x038 ClientPort       : Ptr64 Void
+   +0x040 ClientViewBase   : Ptr64 Char
+   +0x048 ClientViewBounds : Ptr64 Char
+   +0x050 ProcessHandle    : Ptr64 Void
+   +0x058 SequenceNumber   : Uint4B
+   +0x05c Flags            : Uint4B
+   +0x060 DebugFlags       : Uint4B
+   +0x064 ReferenceCount   : Int4B
+   +0x068 ProcessGroupId   : Uint4B
+   +0x06c ProcessGroupSequence : Uint4B
+   +0x070 LastMessageSequence : Uint4B
+   +0x074 NumOutstandingMessages : Uint4B
+   +0x078 ShutdownLevel    : Uint4B
+   +0x07c ShutdownFlags    : Uint4B
+   +0x080 Luid             : _LUID
+   +0x088 ServerDllPerProcessData : [1] Ptr64 Void
+</code></pre><h2 id="4-side-by-side">4. Side-by-side</h2>
+<p>The <code>sxssrv.dll</code> and <code>sxs.dll</code> mentioned above are related to the Windows Side-by-side (SxS) feature. Let&rsquo;s study SxS here.</p>
+<h3 id="41-basic-concepts">4.1 Basic Concepts</h3>
+<p>Normally, when not using the SxS feature, an application searches for the DLL files it needs to load in the following order:</p>
+<ul>
+<li>The directory from which the application loaded.</li>
+<li>The native Windows system directory (<code>C:\Windows\System32</code>).</li>
+<li>The 16-bit Windows system directory (<code>C:\Windows\System</code>).</li>
+<li>The Windows directory (<code>C:\Windows</code>).</li>
+<li>The current directory at the time the application loaded.</li>
+<li>The directories specified in the <code>%PATH%</code> environment variable.</li>
+</ul>
+<p>This loading method can easily introduce security risks. Windows provides various defense mechanisms against this, which will not be enumerated here.</p>
+<p>Considering more complex scenarios, features in a DLL file may be modified for security, performance, or other reasons, leading to DLL version updates. However, programs developed by developers may have strict requirements and can only use functionality provided by a specific version of a DLL. In such cases, the application needs a way to specify which version of the DLL to use, and Windows needs a mechanism to provide that specific version of the DLL to the program. To address this, the concept of a side-by-side assembly was introduced.</p>
+<p>According to MSDN, an assembly is the primary unit for naming, binding, versioning, deploying, or configuring blocks of programming code. Applications with common functionality may run shared blocks of programming code, which are called modules or code assemblies. Code assemblies can be placed in DLL files or COM assemblies. The infrastructure used for secure assembly sharing is called side-by-side assembly sharing. A typical side-by-side assembly consists of a single DLL file along with a single manifest. The manifest contains metadata describing the side-by-side assembly and its dependencies.</p>
+<p>The explanation above can be quite abstract when first encountered. During my learning process, I simply thought of an assembly as another name for a DLL file—both are a <strong>collection of code related to some general functionality</strong>.</p>
+<p>SxS assemblies can be either private or shared. Shared Windows assemblies are stored under the <code>C:\Windows\WinSxS</code> directory. If an application wants to use the SxS feature, it must provide a manifest file containing DLL version information. When loading a DLL, the system will search the WinSxS directory first based on the contents of the manifest.</p>
+<h3 id="42-manifest">4.2 Manifest</h3>
+<p>An assembly manifest is essentially an XML file.</p>
+<h3 id="43-activation-context">4.3 Activation Context</h3>
+<p>Manifests are stored in the resource section of a binary. When the system loads the manifest content, it packages these dependency details into a search structure called an activation context.</p>
+<p>The system creates default system-level and process-level activation contexts during boot and process startup. In addition, each thread has an associated activation context stack, where the activation context structure at the top of the stack is the currently active one. Each thread&rsquo;s activation context stack can be explicitly managed via the <code>ActivateActCtx</code> and <code>DeactivateActCtx</code> functions, or implicitly managed by the system at certain points, such as when the entry point (DLL main routine) of a binary containing dependency information is called.</p>
+<p>When resolving DLL file paths, the system first checks the activation context at the top of the current thread&rsquo;s activation context stack. If it is not found, it checks the process and system activation contexts in sequence.</p>
+<h2 id="5-startup-flow">5. Startup Flow</h2>
+<p>Startup parameters:</p>
+<pre tabindex="0"><code>%SystemRoot%\system32\csrss.exe ObjectDirectory=\Windows SharedSection=1024,20480,768 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16
+</code></pre><p>Viewing <code>csrss.exe</code> in IDA, it calls the <code>CsrServerInitialization</code> function in <code>csrsrv.dll</code>, which then calls <code>CsrParseServerCommandLine</code>. Inside, it searches for <code>!_stricmp(name, &quot;ServerDLL&quot;)</code>. We can see that when the parameter is <code>ServerDLL=</code>, the function splits the parameter value based on colons and commas, and then calls <code>result = CsrLoadServerDll(value_idx, func_name, num);</code> to load the corresponding DLL file:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>...
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>_stricmp(name, <span style="color:#e6db74">&#34;ServerDLL&#34;</span>) )
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        cur_char_1 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>value_idx;
+</span></span><span style="display:flex;"><span>        func_name <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>        idx_1 <span style="color:#f92672">=</span> value_idx;
+</span></span><span style="display:flex;"><span>        v8 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0xC000000D</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!*</span>value_idx )
+</span></span><span style="display:flex;"><span>          <span style="color:#66d9ef">return</span> v8;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">while</span> ( <span style="color:#ae81ff">1</span> )
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>          <span style="color:#66d9ef">if</span> ( cur_char_1 <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;:&#39;</span> )
+</span></span><span style="display:flex;"><span>          {
+</span></span><span style="display:flex;"><span>            cur_char_1 <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;:&#39;</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>func_name )
+</span></span><span style="display:flex;"><span>            {
+</span></span><span style="display:flex;"><span>              <span style="color:#f92672">*</span>idx_1<span style="color:#f92672">++</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>              func_name <span style="color:#f92672">=</span> idx_1;
+</span></span><span style="display:flex;"><span>              cur_char_1 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>idx_1;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>          }
+</span></span><span style="display:flex;"><span>          <span style="color:#f92672">++</span>idx_1;
+</span></span><span style="display:flex;"><span>          <span style="color:#66d9ef">if</span> ( cur_char_1 <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;,&#39;</span> )
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>          cur_char_1 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>idx_1;
+</span></span><span style="display:flex;"><span>          <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!*</span>idx_1 )
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> v8;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        v8 <span style="color:#f92672">=</span> RtlCharToInteger(idx_1, <span style="color:#ae81ff">0xAu</span>, <span style="color:#f92672">&amp;</span>num);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> ( v8 <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>          <span style="color:#66d9ef">return</span> v8;
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">*</span>(idx_1 <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>        result <span style="color:#f92672">=</span> CsrLoadServerDll(value_idx, func_name, num);
+</span></span><span style="display:flex;"><span>        v8 <span style="color:#f92672">=</span> result;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> ( result <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>          <span style="color:#66d9ef">return</span> result;
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      ...
+</span></span></code></pre></div><p><code>CsrLoadServerDll</code> constructs a new structure, tentatively named <code>ServerDllStruct</code> here, and calls the <code>func_name</code> function in the corresponding DLL file with this structure as a parameter. If <code>func_name</code> is not specified, it calls <code>ServerDllInitialization</code> instead:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>v7 <span style="color:#f92672">=</span> dll_name_2.MaximumLength <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x78</span>;
+</span></span><span style="display:flex;"><span>heap <span style="color:#f92672">=</span> RtlAllocateHeap(CsrHeap, CsrBaseTag <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x40000</span>, v7);
+</span></span><span style="display:flex;"><span>server_dll_struct <span style="color:#f92672">=</span> heap;
+</span></span><span style="display:flex;"><span>Parameters[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">=</span> heap;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> ( heap )
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  memset_0(heap, <span style="color:#ae81ff">0</span>, v7);
+</span></span><span style="display:flex;"><span>  server_dll_struct<span style="color:#f92672">-&gt;</span>pCsrSrvSharedSectionHeap <span style="color:#f92672">=</span> CsrSrvSharedSectionHeap;
+</span></span><span style="display:flex;"><span>  server_dll_struct<span style="color:#f92672">-&gt;</span>NameLength <span style="color:#f92672">=</span> dll_name_2.Length;
+</span></span><span style="display:flex;"><span>  server_dll_struct<span style="color:#f92672">-&gt;</span>NameMaximumLength <span style="color:#f92672">=</span> dll_name_2.MaximumLength;
+</span></span><span style="display:flex;"><span>  server_dll_struct<span style="color:#f92672">-&gt;</span>pName <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>server_dll_struct[<span style="color:#ae81ff">1</span>];
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( dll_name_2.Length )
+</span></span><span style="display:flex;"><span>    strncpy_s(<span style="color:#f92672">&amp;</span>server_dll_struct[<span style="color:#ae81ff">1</span>], server_dll_struct<span style="color:#f92672">-&gt;</span>NameMaximumLength, dll_name_2.Buffer, dll_name_2.Length);
+</span></span><span style="display:flex;"><span>  server_dll_struct<span style="color:#f92672">-&gt;</span>value <span style="color:#f92672">=</span> num;
+</span></span><span style="display:flex;"><span>  server_dll_struct<span style="color:#f92672">-&gt;</span>pAddress <span style="color:#f92672">=</span> dll_addr;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( dll_addr )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( func_name )
+</span></span><span style="display:flex;"><span>      func_name_1 <span style="color:#f92672">=</span> func_name;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>      func_name_1 <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;ServerDllInitialization&#34;</span>;
+</span></span><span style="display:flex;"><span>    RtlInitString(<span style="color:#f92672">&amp;</span>func_name_2, func_name_1);
+</span></span><span style="display:flex;"><span>    status_1 <span style="color:#f92672">=</span> LdrGetProcedureAddress(dll_addr, <span style="color:#f92672">&amp;</span>func_name_2, <span style="color:#ae81ff">0</span>, <span style="color:#f92672">&amp;</span>func_addr);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( status_1 <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      v15 <span style="color:#f92672">=</span> dll_addr;
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>dll_addr )
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">goto</span> LABEL_35;
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">goto</span> LABEL_34;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    v12 <span style="color:#f92672">=</span> (func_addr)(server_dll_struct);
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    func_addr <span style="color:#f92672">=</span> CsrServerDllInitialization;
+</span></span><span style="display:flex;"><span>    v12 <span style="color:#f92672">=</span> (CsrServerDllInitialization)(server_dll_struct);
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  status_1 <span style="color:#f92672">=</span> v12;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( v12 <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    LODWORD(CsrTotalPerProcessDataLength) <span style="color:#f92672">=</span> ((server_dll_struct<span style="color:#f92672">-&gt;</span>num3 <span style="color:#f92672">+</span> <span style="color:#ae81ff">7</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFFFFFFF8</span>)
+</span></span><span style="display:flex;"><span>                                          <span style="color:#f92672">+</span> CsrTotalPerProcessDataLength;
+</span></span><span style="display:flex;"><span>    v13 <span style="color:#f92672">=</span> server_dll_struct<span style="color:#f92672">-&gt;</span>value;
+</span></span><span style="display:flex;"><span>    CsrLoadedServerDll[v13] <span style="color:#f92672">=</span> server_dll_struct;
+</span></span><span style="display:flex;"><span>    v14 <span style="color:#f92672">=</span> server_dll_struct<span style="color:#f92672">-&gt;</span>pCsrSrvSharedSectionHeap;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( v14 <span style="color:#f92672">!=</span> CsrSrvSharedSectionHeap )
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>(v13 <span style="color:#f92672">*</span> <span style="color:#ae81ff">8</span> <span style="color:#f92672">+</span> CsrSrvSharedStaticServerData) <span style="color:#f92672">=</span> v14;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> status_1;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Based on the code above, the fields in the <code>ServerDLL</code> values of <code>csrss.exe</code>&rsquo;s startup parameters have the following meaning:
+<code>ServerDll=[DLL Filename]:[Function Name],[Corresponding ServerDllStruct Index]</code></p>
+<h2 id="references">References</h2>
+<ol>
+<li><a href="http://www.pkuexploit.com/files/paper50.pdf">Analysis and Exploitation of Windows-based CSRSS Process Vulnerabilities (基于Windows的CSRSS进程漏洞分析与利用)</a></li>
+<li><a href="https://bbs.pediy.com/thread-150284.htm">Analysis of the CSRSS Process (csrss进程剖析)</a></li>
+<li><a href="https://j00ru.vexillium.org/2010/07/windows-csrss-write-up-the-basics/">Windows CSRSS write up: the basics (part 1/1)</a></li>
+<li><a href="https://j00ru.vexillium.org/?p=502">Windows CSRSS Write Up: Inter-process Communication (part 1/3)</a></li>
+<li><a href="https://j00ru.vexillium.org/?p=527">Windows CSRSS Write Up: Inter-process Communication (part 2/3)</a></li>
+<li><a href="https://learn.microsoft.com/en-us/previous-versions//cc750820(v=technet.10)?redirectedfrom=MSDN#XSLTsection124121120120">MS Windows NT Kernel-mode User and GDI White Paper</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/os/" rel="tag">os</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+
+
+
+
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2026 Logic Security.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+</body>
+</html>

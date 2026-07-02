@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>binary on Logic Security</title>
+    <link>https://www.zoemurmure.top/tags/binary/</link>
+    <description>Recent content in binary on Logic Security</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en</language>
+    <lastBuildDate>Mon, 21 Oct 2024 18:15:39 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/binary/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>[CVE-2024-43560] Windows Storage Port Driver Privilege Escalation Vulnerability</title>
+      <link>https://www.zoemurmure.top/posts/cve_2024_43560/</link>
+      <pubDate>Mon, 21 Oct 2024 18:15:39 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/cve_2024_43560/</guid>
+      <description>1. Background Based on the vulnerability name (Microsoft Windows Storage Port Driver), we can search and identify the corresponding file as storport.sys. This driver is used for communication between the computer and high-performance storage devices, defining how the computer communicates with these devices.
+2. Patch Diffing System Version: Win11 22H2 Pro
+The diff shows that 6 functions were modified:
+After comparing the function code before and after the patch, the differences mainly lie in the calls to Feature_ class functions.</description>
+    </item>
+    
+    <item>
+      <title>[CVE-2023-24949] Windows Kernel Elevation of Privilege Vulnerability Analysis</title>
+      <link>https://www.zoemurmure.top/posts/cve_2023_24949/</link>
+      <pubDate>Mon, 12 Jun 2023 16:57:51 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/cve_2023_24949/</guid>
+      <description>0. Introduction This article introduces the CVE-2023-24949 vulnerability, whose full English name is &amp;ldquo;Windows Kernel Elevation of Privilege Vulnerability&amp;rdquo;, indicating that the vulnerability is located in ntoskrnl.exe. According to the official advisory, an attacker can exploit this vulnerability to achieve local privilege escalation. This post describes the vulnerability based on my personal analysis workflow. Through patch comparison, function analysis, and function debugging, the vulnerability mechanism and trigger method were determined,</description>
+    </item>
+    
+    <item>
+      <title>[CVE-2023-21554] Windows Message Queuing Remote Code Execution Vulnerability Analysis</title>
+      <link>https://www.zoemurmure.top/posts/cve_2023_21554/</link>
+      <pubDate>Wed, 17 May 2023 17:14:55 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/cve_2023_21554/</guid>
+      <description>0. Preface This article introduces the CVE-2023-21554 vulnerability, which exists in Microsoft&amp;rsquo;s Message Queuing (MSMQ) service. Due to the service&amp;rsquo;s lack of proper validation of data packets, an attacker can exploit this vulnerability to achieve remote code execution.
+As I was not familiar with the MSMQ service, I first spent a significant portion of this post introducing the service and its related data structures. Afterwards, I located the vulnerability by comparing patches.</description>
+    </item>
+    
+    <item>
+      <title>Exploring Exploitation Methodologies for CVE-2023-21768 AFD for WinSock Elevation of Privilege</title>
+      <link>https://www.zoemurmure.top/posts/cve_2023_21768/</link>
+      <pubDate>Fri, 21 Apr 2023 09:52:44 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/cve_2023_21768/</guid>
+      <description>1. Preface This article analyzes the CVE-2023-21768 vulnerability, which resides in the AFD (Ancillary Function Driver) driver of the Windows operating system. Throughout this post, &amp;ldquo;the original article&amp;rdquo; refers to reference [1]. By studying that article, I reproduced and rewrote the exploit code while analyzing my own shortcomings relative to the steps taken by others when developing exploits.
+This write-up covers three main sections: basic vulnerability analysis, vulnerability trigger attempts (PoC), and exploit implementation, along with a brief introduction to the I/O Ring concepts involved in the exploitation process.</description>
+    </item>
+    
+    <item>
+      <title>Win32k Type Confusion Vulnerability Analysis Guide</title>
+      <link>https://www.zoemurmure.top/posts/win32k_1732_21881/</link>
+      <pubDate>Tue, 07 Feb 2023 14:25:08 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/win32k_1732_21881/</guid>
+      <description>0. Preface As we all know, win32k has contributed significantly to Windows privilege escalation vulnerabilities in recent years. I have always wanted to understand the principles of these vulnerabilities and read many related papers for this purpose. However, as a novice in kernel vulnerability research, the write-ups on win32k vulnerabilities written by experts still looked like gibberish to me.
+Of course, I know what UAF (Use-After-Free) and type confusion are, and I also know that many win32k vulnerabilities are caused by callback functions.</description>
+    </item>
+    
+    <item>
+      <title>[CVE-2023-21752] Windows Backup Service Local Privilege Escalation Vulnerability Analysis</title>
+      <link>https://www.zoemurmure.top/posts/cve_2023_21752_1/</link>
+      <pubDate>Tue, 17 Jan 2023 19:06:30 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/cve_2023_21752_1/</guid>
+      <description>0. Preface CVE-2023-21752 is the first Microsoft vulnerability of 2023 to have a public exploit. Initially, I thought it would be straightforward to analyze given the availability of exploit code. However, it ended up taking a significant amount of time. The primary challenges lay in two areas: locating the vulnerability and analyzing the exploit code. Therefore, this article dedicates substantial coverage to these two parts. Feedback and corrections are welcome.</description>
+    </item>
+    
+    <item>
+      <title>[HEVD Exploit Series] StackOverflowGS</title>
+      <link>https://www.zoemurmure.top/posts/hevd_stackoberflowgs/</link>
+      <pubDate>Tue, 10 Jan 2023 11:18:29 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/hevd_stackoberflowgs/</guid>
+      <description>0. Preface HackSys Extreme Vulnerable Driver (HEVD) is a Windows driver with multiple vulnerabilities developed for learning kernel exploit techniques. This article describes how to bypass a stack overflow vulnerability with /GS protection under a Windows 10 64-bit environment, involving two security mitigations: SMEP and /GS. Only part of the code is posted in this article. For the complete code, please refer to: https://github.com/zoemurmure/HEVD-Exploit
+1. Target Function TriggerBufferOverflowStackGS
+__int64 __fastcall TriggerBufferOverflowStackGS(void *src, unsigned __int64 Size) { char dst[512]; // [rsp+20h] [rbp-238h] BYREF memset(dst, 0, sizeof(dst)); ProbeForRead(src, 0x200ui64, 1u); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] UserBuffer: 0x%p\n&amp;#34;, src); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] UserBuffer Size: 0x%X\n&amp;#34;, Size); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] KernelBuffer: 0x%p\n&amp;#34;, dst); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] KernelBuffer Size: 0x%X\n&amp;#34;, 512i64); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] Triggering Buffer Overflow in Stack (GS)\n&amp;#34;); memmove(dst, src, Size); return 0i64; } 2.</description>
+    </item>
+    
+    <item>
+      <title>[HEVD Exploit Series] StackOverflow</title>
+      <link>https://www.zoemurmure.top/posts/hevd_stackoverflow/</link>
+      <pubDate>Tue, 10 Jan 2023 11:18:24 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/hevd_stackoverflow/</guid>
+      <description>Target Function TriggerBufferOverflowStack
+__int64 __fastcall TriggerBufferOverflowStack(void *Src, unsigned __int64 Size) { char Dst[2048]; // [rsp+20h] [rbp-818h] BYREF memset(Dst, 0, sizeof(Dst)); ProbeForRead(Src, 0x800ui64, 1u); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] UserBuffer: 0x%p\n&amp;#34;, Src); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] UserBuffer Size: 0x%X\n&amp;#34;, Size); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] KernelBuffer: 0x%p\n&amp;#34;, Dst); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] KernelBuffer Size: 0x%X\n&amp;#34;, 0x800i64); DbgPrintEx(0x4Du, 3u, &amp;#34;[+] Triggering Buffer Overflow in Stack\n&amp;#34;); memmove(Dst, Src, Size); return 0i64; } Mitigation: SMEP^[3]^ Definition SMEP, i.e., Supervisor Mode Execution Protection, ensures that the application does not execute code in untrusted user-mode memory when running at a higher privilege level.</description>
+    </item>
+    
+  </channel>
+</rss>

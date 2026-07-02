@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>poc on Logic Security</title>
+    <link>https://www.zoemurmure.top/tags/poc/</link>
+    <description>Recent content in poc on Logic Security</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en</language>
+    <lastBuildDate>Mon, 12 Jun 2023 16:57:51 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/poc/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>[CVE-2023-24949] Windows Kernel Elevation of Privilege Vulnerability Analysis</title>
+      <link>https://www.zoemurmure.top/posts/cve_2023_24949/</link>
+      <pubDate>Mon, 12 Jun 2023 16:57:51 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/cve_2023_24949/</guid>
+      <description>0. Introduction This article introduces the CVE-2023-24949 vulnerability, whose full English name is &amp;ldquo;Windows Kernel Elevation of Privilege Vulnerability&amp;rdquo;, indicating that the vulnerability is located in ntoskrnl.exe. According to the official advisory, an attacker can exploit this vulnerability to achieve local privilege escalation. This post describes the vulnerability based on my personal analysis workflow. Through patch comparison, function analysis, and function debugging, the vulnerability mechanism and trigger method were determined,</description>
+    </item>
+    
+    <item>
+      <title>[CVE-2023-21554] Windows Message Queuing Remote Code Execution Vulnerability Analysis</title>
+      <link>https://www.zoemurmure.top/posts/cve_2023_21554/</link>
+      <pubDate>Wed, 17 May 2023 17:14:55 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/cve_2023_21554/</guid>
+      <description>0. Preface This article introduces the CVE-2023-21554 vulnerability, which exists in Microsoft&amp;rsquo;s Message Queuing (MSMQ) service. Due to the service&amp;rsquo;s lack of proper validation of data packets, an attacker can exploit this vulnerability to achieve remote code execution.
+As I was not familiar with the MSMQ service, I first spent a significant portion of this post introducing the service and its related data structures. Afterwards, I located the vulnerability by comparing patches.</description>
+    </item>
+    
+  </channel>
+</rss>

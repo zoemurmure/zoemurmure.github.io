@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>history on Logic Security</title>
+    <link>https://www.zoemurmure.top/archives/history/</link>
+    <description>Recent content in history on Logic Security</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en</language>
+    <lastBuildDate>Tue, 10 Jan 2023 11:14:05 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/archives/history/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Collection of Historical Posts</title>
+      <link>https://www.zoemurmure.top/posts/history_posts/</link>
+      <pubDate>Tue, 10 Jan 2023 11:14:05 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/history_posts/</guid>
+      <description>Most of my previous posts were published on KanXue:
+KanXue Post Collection</description>
+    </item>
+    
+  </channel>
+</rss>

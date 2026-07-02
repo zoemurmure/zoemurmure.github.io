@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>notes on Logic Security</title>
+    <link>https://www.zoemurmure.top/tags/notes/</link>
+    <description>Recent content in notes on Logic Security</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en</language>
+    <lastBuildDate>Tue, 27 Aug 2024 15:55:41 +0800</lastBuildDate><atom:link href="https://www.zoemurmure.top/tags/notes/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>[Learning Notes] Windows Downdate: Vulnerability Discovery and Exploitation</title>
+      <link>https://www.zoemurmure.top/posts/windows_downdate/</link>
+      <pubDate>Tue, 27 Aug 2024 15:55:41 +0800</pubDate>
+      
+      <guid>https://www.zoemurmure.top/posts/windows_downdate/</guid>
+      <description>Overview In this post, the author discovers vulnerabilities in Windows Update by examining its architecture and execution flow. Under Administrator privileges, an attacker can manipulate registry keys to control arbitrary system files, replacing them and bypassing system integrity checks. Due to the lack of downgrade file validation in the operating system, this capability can be leveraged to achieve further privilege escalation and security boundary bypasses.
+Principles Windows Update Architecture Approach 1: In the architecture shown above, privilege escalation from Administrator to Trusted Installer is possible.</description>
+    </item>
+    
+  </channel>
+</rss>

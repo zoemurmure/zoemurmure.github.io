@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[CVE-2023-21752] Windows Backup Service Local Privilege Escalation Vulnerability Analysis - Logic Security</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="CVE-2023-21752 Windows Backup Service Local Privilege Escalation Vulnerability Analysis">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/posts/history_posts/">
+				
+				<span class="menu__text">Collection of Historical Posts</span>
+				
+			</a>
+		</li>
+		
+		
+		
+			
+				<li class="menu__item menu__item--active">
+					<a class="menu__link" href="/posts/cve_2023_21752_1/">
+						<span class="menu__text" style="font-weight: bold;">English</span>
+					</a>
+				</li>
+			
+				<li class="menu__item">
+					<a class="menu__link" href="/zh/posts/cve_2023_21752_1/">
+						<span class="menu__text" style="">中文</span>
+					</a>
+				</li>
+			
+		
+	</ul>
+</nav>
+
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[CVE-2023-21752] Windows Backup Service Local Privilege Escalation Vulnerability Analysis</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-01-17T19:06:30&#43;08:00">January 17, 2023</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    
+        <span class="post-date">2971 words</span>, <span class="more-meta">14 min read</span>
+    
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/vulnerability-analysis/" rel="category">Vulnerability Analysis</a>
+	</span>
+</div></div>
+		</header>
+		<div class="content post__content clearfix">
+			<h2 id="0-preface">0. Preface</h2>
+<p>CVE-2023-21752 is the first Microsoft vulnerability of 2023 to have a public exploit. Initially, I thought it would be straightforward to analyze given the availability of exploit code. However, it ended up taking a significant amount of time. The primary challenges lay in two areas: locating the vulnerability and analyzing the exploit code. Therefore, this article dedicates substantial coverage to these two parts. Feedback and corrections are welcome.</p>
+<h2 id="1-vulnerability-overview">1. Vulnerability Overview</h2>
+<p>According to Microsoft&rsquo;s official advisory, this is an elevation of privilege vulnerability in the Windows Backup Service. An authenticated attacker could exploit this vulnerability to elevate their privileges to SYSTEM. Successful exploitation requires the attacker to win a race condition.</p>
+<p>The exploit code is hosted on <a href="https://github.com/Wh04m1001/CVE-2023-21752">GitHub</a>, which provides two versions: Version 1 achieves arbitrary file deletion and is reliably reproducible; Version 2 attempts to leverage arbitrary deletion to achieve local privilege escalation (LPE), but reproduction is unstable.</p>
+<h2 id="2-the-tortuous-journey-of-locating-the-vulnerability">2. The Tortuous Journey of Locating the Vulnerability</h2>
+<p>This section documents some of my failed attempts and personal reflections to prevent making the same mistakes in the future. Readers only interested in the vulnerability analysis can skip sections 2.1 and 2.3.</p>
+<h3 id="21-failed-attempts">2.1 Failed Attempts</h3>
+<p>First, I attempted to reproduce the vulnerability. The privilege escalation version of the exploit failed to reproduce in my virtual machine. The arbitrary file deletion version also failed initially because I did not use absolute paths (though I did not know the reason at the time).</p>
+<p>Next, I attempted patch diffing. However, to perform patch diffing, I first needed to identify which file contained the vulnerability. Based on the exploit program&rsquo;s file naming <code>SDRsvcEop</code>, I found the file <code>sdrsvc.dll</code>. However, patch diffing did not reveal any relevant changes.</p>
+<blockquote>
+<p>During this time, I also searched for information regarding this vulnerability. Aside from the security advisory and the GitHub exploit repository, there was no other content. I have to criticize a certain security firm&rsquo;s advisory here, which claimed this vulnerability was in Windows Server Backup (WSB)&hellip;</p>
+</blockquote>
+<p>By this point, I had already begun analyzing the exploit code. On one hand, I used Microsoft documentation to understand the usage of certain functions and parameters in the code; on the other hand, I began debugging in WinDbg, which led me to files like <code>rpcrt4.dll</code> and <code>combase.dll</code> that were unrelated to the vulnerability.</p>
+<p>During debugging, I spent a lot of time on the <code>DeviceIoControl</code> function. Because many vulnerabilities I analyzed previously were ultimately located in <code>.sys</code> driver files, even though I kept <code>.dll</code> files in mind, my methodology was biased toward locating a <code>.sys</code> file. Consequently, I wanted to set a breakpoint at the user-to-kernel transition point when the exploit executed <code>DeviceIoControl</code>, and then monitor where the system executed. Of course, this method failed and left me quite frustrated.</p>
+<p>It was only at this point that I realized I should change the relative paths in the exploit arguments to absolute paths, after which I successfully reproduced the arbitrary file deletion. However, I went on another detour right after&hellip;</p>
+<blockquote>
+<p>When studying malware analysis previously, there was a standard workflow: run the malware first to observe its dynamic behavior, which facilitates subsequent dynamic analysis. Many vulnerability analysis articles I read also run the PoC or exploit and monitor the processes, but I completely forgot this, or rather, even though I thought of it, I did not prioritize it.</p>
+</blockquote>
+<p>I continued analyzing the exploit code. During this time, I read some materials on DCOM and confirmed that <code>sdrsvc.dll</code> relies on <code>rpcss.dll</code> (which I could have easily confirmed using Process Hacker&hellip;). Through patch diffing, I noticed that the function <code>CServerSet::RemoveObject</code> had been modified. I tried setting a breakpoint on this function in WinDbg, but the exploit did not execute it, meaning the vulnerability was not in this file.</p>
+<blockquote>
+<p>At this point, my intuition was telling me that I was on the wrong path, because Microsoft&rsquo;s advisory explicitly states &ldquo;Windows Backup Service&rdquo;, so the vulnerable file must be directly related to this feature; otherwise, it would have been labeled an RPC vulnerability.</p>
+</blockquote>
+<h3 id="22-getting-on-track">2.2 Getting on Track</h3>
+<p>Even at this stage, I had not yet used Process Monitor (Procmon) to monitor the exploit. Instead, I chose to run the exploit on systems before and after the patch and compared the outputs (with minor modifications to the output content). I obtained the following results (since this was just a feature test, I did not choose to delete files requiring high privileges):</p>
+<p>Before Patching:</p>
+<pre tabindex="0"><code>PS C:\Users\exp\Desktop&gt; C:\Users\exp\Desktop\SDRsvcEop.exe C:\Users\exp\Desktop\test.txt
+[wmain] Directory: C:\users\exp\appdata\local\temp\23980418-9164-497e-8ce7-930949d1af55
+[Trigger] Path: \\127.0.0.1\c$\Users\exp\AppData\Local\Temp\23980418-9164-497e-8ce7-930949d1af55
+[FindFile] Catch FILE_ACTION_ADDED of C:\users\exp\appdata\local\temp\23980418-9164-497e-8ce7-930949d1af55\SDT2C35.tmp
+[FindFile] Start to CreateLock...
+[cb] Oplock!
+[CreateJunction] Junction \\?\C:\Users\exp\AppData\Local\Temp\23980418-9164-497e-8ce7-930949d1af55 -&gt; \RPC Control created!
+[DosDeviceSymLink] Symlink Global\GLOBALROOT\RPC Control\SDT2C35.tmp -&gt; \??\C:\Users\exp\Desktop\test.txt created!
+[Trigger] Finish sdc-&gt;proc7
+[wmain] Exploit successful!
+[DeleteJunction] Junction \\?\C:\Users\exp\AppData\Local\Temp\23980418-9164-497e-8ce7-930949d1af55 deleted!
+[DelDosDeviceSymLink] Symlink Global\GLOBALROOT\RPC Control\SDT2C35.tmp -&gt; \??\C:\Users\exp\Desktop\test.txt deleted!
+</code></pre><p>After Patching:</p>
+<pre tabindex="0"><code>PS C:\Users\exp\Desktop&gt; C:\Users\exp\Desktop\SDRsvcEop.exe C:\Users\exp\Desktop\test.txt
+[wmain] Directory: C:\users\exp\appdata\local\temp\183c772e-f444-4aec-a489-7d9f734ee719
+[Trigger] Path: \\127.0.0.1\c$\Users\exp\AppData\Local\Temp\183c772e-f444-4aec-a489-7d9f734ee719
+[FindFile] Catch FILE_ACTION_ADDED of C:\users\exp\appdata\local\temp\183c772e-f444-4aec-a489-7d9f734ee719\SDT1F8A.tmp
+[Trigger] Finish sdc-&gt;proc7
+_
+</code></pre><p>From this, it is evident that after the patch, the exploit could no longer acquire a handle to the <code>.tmp</code> file. I suspected that prior to the patch, the vulnerable file created this <code>.tmp</code> file with incorrect permissions (this hypothesis might not be entirely accurate), but this speculation was not very useful at the time as it still did not locate the vulnerable file.</p>
+<p>Then, having almost run out of options, I finally remembered to use Procmon. Thank goodness.</p>
+<p>Based on the comparison of the exploit outputs above, it was clear that the patched location was related to the creation of the <code>.tmp</code> file. Therefore, I paid close attention to the creation operations of this file in Procmon:</p>
+<p><img src="/img/2023-01-17-11-02-32.png" alt=""></p>
+<p>In the Stack tab, I located the function called by <code>sdrsvc.dll</code>, which was situated in <code>sdengin2.dll</code>:</p>
+<p><img src="/img/2023-01-17-11-05-46.png" alt=""></p>
+<p>Based on <code>SdCheck + 0x490c2</code>, I located the function <code>CSdCommonImpl::QueryStorageDevice</code> in IDA. This address corresponds to the location where this function calls <code>QueryStorageDevice</code>.</p>
+<p>After performing patch diffing on <code>sdengin2.dll</code>, I discovered the function <code>IsWritable</code>, which had been modified and was called by <code>QueryStorageDevice</code>.</p>
+<h3 id="23-reflections">2.3 Reflections</h3>
+<p>I encountered several obstacles during this vulnerability analysis:</p>
+<ol>
+<li>Unable to directly identify the vulnerable file from the vulnerability name, which prevented the use of standard patch diffing techniques at the beginning.</li>
+<li>The exploit did not run successfully initially. While this is common, the lack of a clear reason made me assume it was due to my unfamiliarity with the backup service&rsquo;s functionality and the exploit code.</li>
+<li>Unfamiliarity with the exploit code led to:
+<ol>
+<li>Spending significant time researching related materials.</li>
+<li>Having to distinguish helper code from the code directly executing the vulnerability.</li>
+</ol>
+</li>
+</ol>
+<p>Additionally, I had rarely analyzed vulnerabilities with pre-existing, functional exploits before. I was accustomed to starting with static analysis and supplementing it with dynamic analysis in WinDbg. Usually, when encountering a usable PoC, I would trigger the crash directly and debug it from the crash point backward using WinDbg. I had never used Procmon for dynamic monitoring, yet my previous methods had successfully analyzed vulnerabilities, which led me to underestimate the effectiveness of Procmon&rsquo;s dynamic monitoring.</p>
+<p>However, Procmon is not a silver bullet. It appears highly effective for locating vulnerability points, but if the vulnerability location has already been identified through other means, the assistance provided by Procmon is less pronounced, and the analysis can be completed via other methods.</p>
+<h2 id="3-vulnerability-mechanism">3. Vulnerability Mechanism</h2>
+<h3 id="31-patch-comparison">3.1 Patch Comparison</h3>
+<p>Before Patching:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">IsWritable</span>(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int16</span> <span style="color:#f92672">*</span>a1, <span style="color:#66d9ef">int</span> a2, <span style="color:#66d9ef">int</span> <span style="color:#f92672">*</span>a3)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  v7 <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( a2 <span style="color:#f92672">==</span> <span style="color:#ae81ff">7</span> )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>GetTempFileNameW(a1, <span style="color:#e6db74">L</span><span style="color:#e6db74">&#34;SDT&#34;</span>, <span style="color:#ae81ff">0</span>, TempFileName) )<span style="color:#75715e">// If getting temp file name fails, enter if block
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    {
+</span></span><span style="display:flex;"><span>      rtnValue <span style="color:#f92672">=</span> v17;
+</span></span><span style="display:flex;"><span>LABEL_28:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>a3 <span style="color:#f92672">=</span> v6;
+</span></span><span style="display:flex;"><span>toend2:
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( v7 <span style="color:#f92672">!=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span> )
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        CloseHandle(v7);
+</span></span><span style="display:flex;"><span>        rtnValue <span style="color:#f92672">=</span> v17;
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">goto</span> end;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    rtnValue <span style="color:#f92672">=</span> SxDeleteFile(TempFileName);      <span style="color:#75715e">// Delete any previously existing tmp file
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    v17 <span style="color:#f92672">=</span> rtnValue;
+</span></span><span style="display:flex;"><span>    v8 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x148</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( rtnValue <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span> )                        <span style="color:#75715e">// Deletion successful
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    {
+</span></span><span style="display:flex;"><span>      v18 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x148</span>;
+</span></span><span style="display:flex;"><span>LABEL_27:
+</span></span><span style="display:flex;"><span>      v6 <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">goto</span> LABEL_28;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>toend:
+</span></span><span style="display:flex;"><span>    v19 <span style="color:#f92672">=</span> v8;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">goto</span> end;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>In the code above, <code>a2</code> is related to the type of path passed. Since the exploit passes a UNC path, the program flow eventually reaches this block.</p>
+<p>According to the documentation for <code>GetTempFileNameW</code>, when its third parameter is 0, the function attempts to generate a unique numeric filename using the system time. If the file already exists, the number increments until the filename is unique. In this scenario, the function creates an empty file with that name and releases its handle. Therefore, prior to the patch, the system checked whether the provided UNC path was writable by determining if <code>GetTempFileNameW</code> could successfully create a temporary file. If it was writable, the created temporary file was subsequently deleted.</p>
+<p>After Patching:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">IsWritable</span>(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int16</span> <span style="color:#f92672">*</span>a1, <span style="color:#66d9ef">int</span> a2, <span style="color:#66d9ef">int</span> <span style="color:#f92672">*</span>a3)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  v7 <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( a2 <span style="color:#f92672">==</span> <span style="color:#ae81ff">7</span> )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( CheckDevicePathIsWritable(a1) <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>LABEL_10:
+</span></span><span style="display:flex;"><span>      rtnValue <span style="color:#f92672">=</span> v16;
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>a3 <span style="color:#f92672">=</span> v6;
+</span></span><span style="display:flex;"><span>toend2:
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( v7 <span style="color:#f92672">!=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span> )
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        CloseHandle(v7);
+</span></span><span style="display:flex;"><span>        rtnValue <span style="color:#f92672">=</span> v16;
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">goto</span> end;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>LABEL_9:
+</span></span><span style="display:flex;"><span>    v6 <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">goto</span> LABEL_10;
+</span></span><span style="display:flex;"><span>  }
+</span></span></code></pre></div><p>After the patch, the original call to <code>GetTempFileNameW</code> was replaced by <code>CheckDevicePathIsWritable</code>. The implementation of <code>GetTempFileNameW</code> resides in <code>kernelbase.dll</code>. If you compare them closely, you will find that most of the code in these two functions is identical, with only one key difference to note when creating the temporary file:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#75715e">// GetTempFileNameW
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>v24 <span style="color:#f92672">=</span> CreateFileW(lpTempFileName, GENERIC_READ, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>i64, <span style="color:#ae81ff">1u</span>, <span style="color:#ae81ff">0x80u</span>, <span style="color:#ae81ff">0</span>i64);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// CheckDevicePathIsWritable
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>v22 <span style="color:#f92672">=</span> CreateFileW(FileName, GENERIC_READ, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>i64, <span style="color:#ae81ff">1u</span>, <span style="color:#ae81ff">0x4000080u</span>, <span style="color:#ae81ff">0</span>i64);
+</span></span></code></pre></div><p>As we can see, in <code>CheckDevicePathIsWritable</code>, the sixth parameter <code>dwFlagsAndAttributes</code> of <code>CreateFileW</code> changed from <code>0x80</code> to <code>0x4000080</code>—that is, from <code>FILE_ATTRIBUTE_NORMAL</code> to <code>FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE</code>.</p>
+<p>According to the documentation, <code>FILE_FLAG_DELETE_ON_CLOSE</code> indicates that the file will be deleted immediately once all of its handles are closed. Furthermore, subsequent requests to open the file must specify the <code>FILE_SHARE_DELETE</code> sharing mode; otherwise, they will fail.</p>
+<p>In short, the patched code integrates the creation and deletion of the temporary file into a single atomic operation.</p>
+<h3 id="32-vulnerability-analysis">3.2 Vulnerability Analysis</h3>
+<p>The patch comparison results confirm that this is a race condition vulnerability. Because the creation and deletion of the temporary file occur sequentially and without restrictions placed on the file between the two operations, an attacker can create another thread to acquire a handle to the temporary file after it is created but before it is deleted. By establishing an opportunistic lock (oplock) to block other threads, the attacker can delete the file and redirect the original file path to another file via symbolic links. When the oplock is released, the target file pointed to by the link will be deleted instead.</p>
+<h2 id="4-exploitation">4. Exploitation</h2>
+<h3 id="41-exploitation-flow-for-arbitrary-file-deletion">4.1 Exploitation Flow for Arbitrary File Deletion</h3>
+<ol>
+<li>Under the temporary directory, create a directory <code>dir</code> with <code>FULL_SHARING</code> permissions to store the temporary file.</li>
+<li>Create a thread <code>FindFile</code> to monitor file creation events within the <code>dir</code> directory:
+<ol>
+<li>Acquire a handle to the newly created file and establish an oplock.</li>
+<li>Move the created file to another directory.</li>
+<li>Create a symbolic link pointing the original file path to the target file to be deleted.</li>
+<li>Release the oplock.</li>
+</ol>
+</li>
+<li>The main thread converts the path of directory <code>dir</code> into UNC format and calls the <code>CSdCommonImpl::QueryStorageDevice</code> interface of the <code>sdrsvc</code> service via <code>CoCreateInstance</code>.</li>
+<li>The <code>sdrsvc</code> service creates a temporary file in the UNC directory and subsequently attempts to delete it.</li>
+</ol>
+<p>As shown in the diagram below:</p>
+<p><img src="/img/2023-01-17-18-41-08.png" alt=""></p>
+<h3 id="42-privilege-escalation-exploitation">4.2 Privilege Escalation Exploitation</h3>
+<h4 id="421-analysis-of-the-lpe-mechanism">4.2.1 Analysis of the LPE Mechanism</h4>
+<p>This section generally aligns with <a href="https://www.zerodayinitiative.com/blog/2022/3/16/abusing-arbitrary-file-deletes-to-escalate-privilege-and-other-great-tricks">ZDI&rsquo;s blog post</a>, which is summarized here.</p>
+<p>In short, migrating from <strong>arbitrary file deletion</strong> to local privilege escalation requires winning a race condition against the execution of the MSI installer.</p>
+<p>The Windows Installer service handles application installation, while <code>.msi</code> files define the changes made during installation (e.g., creating folders, copying files, modifying registry keys). Because system modifications occur during installation, the MSI service creates a folder named <code>C:\Config.msi</code> to record all changes in <code>.rbs</code> files and stores backups of replaced system files as <code>.rbf</code> files within it. This allows the system to rollback in case of an installation error. If an attacker can replace these <code>.rbf</code> files, they can overwrite system files with arbitrary malicious files. Because of this file replacement risk, <code>C:\Config.msi</code> and its contents default to strong DACLs.</p>
+<p>However, if an attacker has an <strong>arbitrary directory deletion</strong> primitive, they can delete <code>C:\Config.msi</code>, recreate a weak-DACL <code>C:\Config.msi</code> directory, and replace the <code>.rbf</code> files after the MSI installer creates them, achieving privilege escalation via malicious <code>.rbf</code> files.</p>
+<p>Specifically, during execution, the MSI service performs a <strong>Create -&gt; Delete -&gt; Recreate</strong> sequence on the <code>C:\Config.msi</code> directory before beginning to write <code>.rbs</code> files. Therefore, the <strong>arbitrary directory deletion</strong> must delete the <code>C:\Config.msi</code> directory after it is <strong>recreated</strong> but before the <code>.rbs</code> file is created. The attacker must then monitor for the creation of the <code>.rbs</code> file and swap the files. The race condition occurs during this window.</p>
+<p>The vulnerability discussed is an <strong>arbitrary file deletion</strong>. If we only have an <strong>arbitrary file deletion</strong> primitive, we can delete the <code>C:\Config.msi::$INDEX_ALLOCATION</code> alternate data stream, which achieves directory deletion in the same manner.</p>
+<p>The workflow for privilege escalation via arbitrary file deletion is illustrated below:</p>
+<p><img src="/img/2023-01-18-08-23-32.png" alt=""></p>
+<h4 id="422-failure-analysis">4.2.2 Failure Analysis</h4>
+<p>The workflow described above treats the <strong>deletion of Config.msi</strong> as an atomic action. However, in CVE-2023-21752, file deletion itself requires winning a race condition and involves relatively complex steps. This means that to achieve local privilege escalation using this vulnerability, the attacker must win two separate race conditions simultaneously. This explains why my initial attempts at reproduction always failed.</p>
+<p>To better understand the execution flow of the exploit code, I added and modified comments in the source code, producing the following execution log:</p>
+<pre tabindex="0"><code>PS C:\Users\exp\Desktop&gt; C:\Users\exp\Desktop\SDRsvcEop.exe
+[wmain] Config.msi directory created!
+[wmain] Directory: C:\users\exp\appdata\local\temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8
+[wmain] Got handle of uuid directory
+[wmain] Finish create oplock for config.msi
+
+[Trigger] Path: \\127.0.0.1\c$\Users\exp\AppData\Local\Temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8
+[FindFile] Found added file C:\users\exp\appdata\local\temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8\SDT73B.tmp
+[FindFile] Got handle of C:\users\exp\appdata\local\temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8\SDT73B.tmp
+[cb] Oplock!
+[Move] Finish moving to \??\C:\windows\temp\c5b82788-8133-4971-b351-38f58233ced1
+[CreateJunction] Junction \\?\C:\Users\exp\AppData\Local\Temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8 -&gt; \RPC Control created!
+[DosDeviceSymLink] Symlink Global\GLOBALROOT\RPC Control\SDT73B.tmp -&gt; \??\C:\Config.msi::$INDEX_ALLOCATION created!
+[FindFile] End
+
+[Move] Finish moving to \??\C:\windows\temp\0f1161f2-a8c5-4798-a71d-f32ebba87125
+[install] MSI file: C:\windows\temp\MSI72F.tmp
+[install] Start ACTION=INSTALL
+[cb1] Detect first create
+[cb1] Detect first delete
+[install] Start REMOVE=ALL
+[install] Start delete msi file
+
+[Fail] Race condtion failed!
+[DeleteJunction] Junction \\?\C:\Users\exp\AppData\Local\Temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8 deleted!
+[DelDosDeviceSymLink] Symlink Global\GLOBALROOT\RPC Control\SDT73B.tmp -&gt; \??\C:\Config.msi::$INDEX_ALLOCATION deleted!
+</code></pre><p>I added line breaks between the output logs for clarity. During the <strong>file deletion</strong> phase, the program detected the generation of the temporary file and successfully created the symbolic link. However, because the symbolic link directed the temporary file to <code>C:\Config.msi::$INDEX_ALLOCATION</code>, and the oplock on <code>C:\Config.msi</code> was held by the MSI thread, the deletion operation stalled.</p>
+<p>Meanwhile, the MSI thread only detected the first creation and deletion of <code>C:\Config.msi</code> but failed to detect the second creation. Since a loop was used to detect creation behavior, this thread fell into an infinite loop.</p>
+<p>The failure to win the race condition against the MSI thread resulted in a deadlock between the two threads, causing the exploit to fail.</p>
+<h4 id="423-troubleshooting-and-resolution">4.2.3 Troubleshooting and Resolution</h4>
+<p>First, I mapped the entire execution flow of the exploit code into the following diagram:</p>
+<p><img src="/img/2023-01-18-16-30-28.png" alt=""></p>
+<p>The red box highlights where the race condition failed.</p>
+<p>I tried increasing the number of CPUs on the virtual machine and optimizing the code monitoring the creation of <code>Config.msi</code>, but neither approach succeeded. I also monitored the MSI file execution separately using Procmon and confirmed that the <code>Config.msi</code> directory was indeed recreated a second time.</p>
+<p>Thus, the only logical conclusion was that the second creation of the <code>Config.msi</code> directory occurred too quickly. However, since the recreation of the <code>Config.msi</code> directory definitely takes place, and the exploit has already detected the first deletion, what would happen if we released oplock 2 at that exact moment?</p>
+<p>If we skip monitoring the second creation of the <code>Config.msi</code> directory and directly release oplock 2, the extremely short time interval of the recreation allows the waiting <code>sdrsvc</code> to successfully delete <code>Config.msi</code>. Under these conditions, the exploit execution flow can proceed and successfully elevate privileges!</p>
+<p><img src="/img/2023-01-18-16-57-08.png" alt=""></p>
+<h3 id="43-the-symbolic-link-issue">4.3 The Symbolic Link Issue</h3>
+<p>Previously, I had questions regarding how the exploit code linked to the target file to be deleted. In fact, this exploitation technique <a href="https://vimeo.com/showcase/3416096/video/133002251">originated from James Forshaw</a>, and references 5 and 6 describe it in detail.</p>
+<p>A reparse point/junction is a folder attribute in the NTFS file system that the NTFS driver reads when opening a folder. It can be used to link directories together. Suppose we want to establish a junction pointing directory A to directory B: as long as a normal user has write permission to directory A, they can perform this operation, regardless of their permissions on directory B.</p>
+<p>In Windows, the <code>C:</code> drive directory we often refer to is not an actual folder; it is a symbolic link object pointing to the device&rsquo;s physical address. You can use WinObj to view the <code>\GLOBAL??</code> directory and see that <code>C:</code> is a <code>SymbolicLink</code> object. When we access a file on the C drive, the system translates the access path to the real physical device address. Normal users can also create or delete symbolic links in the Object Manager, but this action is restricted to specific directories, such as <code>\RPC Control</code>.</p>
+<p>In the execution logs of the exploit code shown above, there are two lines of output:</p>
+<pre tabindex="0"><code>[CreateJunction] Junction \\?\C:\Users\exp\AppData\Local\Temp\3bbbd2cf-7baf-42b7-98ea-242f703b08f8 -&gt; \RPC Control created!
+[DosDeviceSymLink] Symlink Global\GLOBALROOT\RPC Control\SDT73B.tmp -&gt; \??\C:\Config.msi::$INDEX_ALLOCATION created!
+</code></pre><p>First, a junction is created from the attacker-controlled directory <code>3bbbd2cf-7baf-42b7-98ea-242f703b08f8</code> pointing to <code>\RPC Control</code>. Thus, accessing this controlled directory is equivalent to accessing <code>\RPC Control</code>. Next, a symbolic link <code>SDT73B.tmp</code> is created under <code>\RPC Control</code> pointing to the target file to be deleted. This effectively links <code>SDT73B.tmp</code> within the controlled directory to the target file. Deleting <code>SDT73B.tmp</code> therefore deletes the target file.</p>
+<h2 id="6-references">6. References</h2>
+<ol>
+<li><a href="https://mp.weixin.qq.com/s/dhKtb8EeBwJnBEjepHXPpg">https://mp.weixin.qq.com/s/dhKtb8EeBwJnBEjepHXPpg</a></li>
+<li><a href="https://googleprojectzero.blogspot.com/2018/08/windows-exploitation-tricks-exploiting.html">Windows Exploitation Tricks: Exploiting Arbitrary Object Directory Creation for Local Elevation of Privilege</a></li>
+<li><a href="https://github.com/Wh04m1001/CVE-2023-21752">CVE-2023-21752 exp</a></li>
+<li><a href="https://www.zerodayinitiative.com/blog/2022/3/16/abusing-arbitrary-file-deletes-to-escalate-privilege-and-other-great-tricks">ABUSING ARBITRARY FILE DELETES TO ESCALATE PRIVILEGE AND OTHER GREAT TRICKS</a></li>
+<li><a href="https://www.cyberark.com/resources/threat-research-blog/follow-the-link-exploiting-symbolic-links-with-ease">Follow the Link: Exploiting Symbolic Links with Ease</a></li>
+<li><a href="https://nixhacker.com/understanding-and-exploiting-symbolic-link-in-windows/">Understanding and Exploiting Symbolic links in Windows - Symlink Attack EOP</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/cve/" rel="tag">cve</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+
+
+
+
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2026 Logic Security.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+</body>
+</html>

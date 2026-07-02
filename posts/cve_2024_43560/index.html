@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>[CVE-2024-43560] Windows Storage Port Driver Privilege Escalation Vulnerability - Logic Security</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="CVE-2024-43560 Windows Storage Port Driver Privilege Escalation Vulnerability">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/posts/history_posts/">
+				
+				<span class="menu__text">Collection of Historical Posts</span>
+				
+			</a>
+		</li>
+		
+		
+		
+			
+				<li class="menu__item menu__item--active">
+					<a class="menu__link" href="/posts/cve_2024_43560/">
+						<span class="menu__text" style="font-weight: bold;">English</span>
+					</a>
+				</li>
+			
+				<li class="menu__item">
+					<a class="menu__link" href="/zh/posts/cve_2024_43560/">
+						<span class="menu__text" style="">中文</span>
+					</a>
+				</li>
+			
+		
+	</ul>
+</nav>
+
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">[CVE-2024-43560] Windows Storage Port Driver Privilege Escalation Vulnerability</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2024-10-21T18:15:39&#43;08:00">October 21, 2024</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    
+        <span class="post-date">1672 words</span>, <span class="more-meta">8 min read</span>
+    
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/vulnerability-analysis/" rel="category">Vulnerability Analysis</a>
+	</span>
+</div></div>
+		</header>
+		<div class="content post__content clearfix">
+			<h2 id="1-background">1. Background</h2>
+<p>Based on the vulnerability name (Microsoft Windows Storage Port Driver), we can search and identify the corresponding file as <code>storport.sys</code>. This driver is used for communication between the computer and high-performance storage devices, defining how the computer communicates with these devices.</p>
+<h2 id="2-patch-diffing">2. Patch Diffing</h2>
+<p>System Version: Win11 22H2 Pro</p>
+<p>The diff shows that 6 functions were modified:</p>
+<p><img src="/img/CVE-2024-43560_0.png" alt="image.png"></p>
+<p>After comparing the function code before and after the patch, the differences mainly lie in the calls to <code>Feature_</code> class functions. These functions are used for compatibility with pre-upgrade code by checking whether a certain global variable is enabled to execute the post-upgrade code. Among them, the function <code>RaUnitStorageGetIdlePowerUpReason</code> performs the most data operations in addition to calling <code>Feature_</code> class functions. Therefore, it is suspected that the vulnerability resides in this function.</p>
+<p><img src="/img/CVE-2024-43560_1.png" alt="image.png"></p>
+<p>Thus, in the patched code, if a certain global variable is not enabled, the pre-patch code is executed; if enabled, the newly added code is executed. Therefore, we can directly compare the differences between the two, which lie in the boxed code:</p>
+<p><img src="/img/CVE-2024-43560_2.png" alt="image.png"></p>
+<h2 id="3-vulnerability-principle-and-patch-analysis">3. Vulnerability Principle and Patch Analysis</h2>
+<p>Although the location of the patched code has been identified, no obvious vulnerability can be seen from the current code. What is noteworthy is that when comparing the size of <code>stackLocation-&gt;Parameters.Read.Length</code>, the value changed from 0x8 to 0xC, and it also checks whether <code>masterIrp</code> is NULL. This part is certainly related to the vulnerability.</p>
+<p>I speculated on some reasons, but because there was too little known information, I couldn&rsquo;t be certain. First, we need to clarify what the parameters and structures are here.</p>
+<p>By checking the official documentation <a href="https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_irp">about the IRP structure</a>, we find that <code>MasterIrp</code> in <code>irp-&gt;AssociatedIrp.MasterIrp</code> is actually a <code>union</code> field, defined as:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>   <span style="color:#66d9ef">union</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">struct</span> _IRP     <span style="color:#f92672">*</span>MasterIrp;
+</span></span><span style="display:flex;"><span>    __volatile LONG IrpCount;
+</span></span><span style="display:flex;"><span>    PVOID           SystemBuffer;
+</span></span><span style="display:flex;"><span>  } AssociatedIrp;
+</span></span></code></pre></div><p>Here, the more reasonable choice should be <code>SystemBuffer</code>. Therefore, we need to figure out what request is being processed in the function <code>RaUnitStorageGetIdlePowerUpReason</code>, and what data structure is stored in the corresponding <code>SystemBuffer</code>.</p>
+<p>Searching for the keywords <code>Storage PowerUpReason</code> led to <a href="https://github.com/tpn/winsdk-10/blob/master/Include/10.0.10240.0/shared/ntddstor.h">this page</a> and <a href="https://doxygen.reactos.org/d6/d86/struct__STORAGE__IDLE__POWERUP__REASON.html">this page</a>, where the following data structures were found:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// IOCTL_STORAGE_GET_IDLE_POWERUP_REASON
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// Input Buffer:
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//      None.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">// Output Buffer:
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//      A STORAGE_IDLE_POWERUP_REASON structure specifying what caused the power up.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">//
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">enum</span> _STORAGE_POWERUP_REASON_TYPE {
+</span></span><span style="display:flex;"><span>  StoragePowerupUnknown           <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>,
+</span></span><span style="display:flex;"><span>  StoragePowerupIO,
+</span></span><span style="display:flex;"><span>  StoragePowerupDeviceAttention
+</span></span><span style="display:flex;"><span>} STORAGE_POWERUP_REASON_TYPE, <span style="color:#f92672">*</span>PSTORAGE_POWERUP_REASON_TYPE;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> _STORAGE_IDLE_POWERUP_REASON {
+</span></span><span style="display:flex;"><span>    ULONG Version;                          <span style="color:#75715e">// Structure version, should be set to 1 for Win8.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONG Size;                             <span style="color:#75715e">// Size of this structure in bytes.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    STORAGE_POWERUP_REASON_TYPE PowerupReason;   <span style="color:#75715e">// The reason for the power up (see above).
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>} STORAGE_IDLE_POWERUP_REASON, <span style="color:#f92672">*</span>PSTORAGE_IDLE_POWERUP_REASON;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#define STORAGE_IDLE_POWERUP_REASON_VERSION_V1 1
+</span></span></span></code></pre></div><p>Although we cannot be absolutely sure of the structure of <code>SystemBuffer</code> at this point, these are the only details obtained so far. So let&rsquo;s temporarily cast it to <code>PSTORAGE_IDLE_POWERUP_REASON</code>. The code looks very reasonable:</p>
+<p><img src="/img/CVE-2024-43560_3.png" alt="image.png"></p>
+<p>I am not entirely sure what the <code>stackLocation-&gt;Parameters.Read.Length</code> field means here, but based on the context, it is likely checking the size of the buffer allocated for <code>PSTORAGE_IDLE_POWERUP_REASON</code>. I also found <a href="https://doxygen.reactos.org/de/da9/cdrom_8h.html#a9cc295e4a24cdfbf833511205a33990c">a snippet of code constructing such a request</a>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>irp <span style="color:#f92672">=</span> <span style="color:#a6e22e">IoBuildDeviceIoControlRequest</span>(IOCTL_STORAGE_GET_IDLE_POWERUP_REASON,
+</span></span><span style="display:flex;"><span>                                    DeviceExtension<span style="color:#f92672">-&gt;</span>LowerPdo,
+</span></span><span style="display:flex;"><span>                                    PowerupReason,
+</span></span><span style="display:flex;"><span>                                    <span style="color:#66d9ef">sizeof</span> (STORAGE_IDLE_POWERUP_REASON),
+</span></span><span style="display:flex;"><span>                                    PowerupReason,
+</span></span><span style="display:flex;"><span>                                    <span style="color:#66d9ef">sizeof</span> (STORAGE_IDLE_POWERUP_REASON),
+</span></span><span style="display:flex;"><span>                                    FALSE,
+</span></span><span style="display:flex;"><span>                                    <span style="color:#f92672">&amp;</span>event,
+</span></span><span style="display:flex;"><span>                                    <span style="color:#f92672">&amp;</span>ioStatus);
+</span></span></code></pre></div><p>As we can see, both the <code>InputBuffer</code> and <code>OutputBuffer</code> for this request are <code>PowerupReason</code>. Therefore, <code>stackLocation-&gt;Parameters.Read.Length</code> is likely checking the size of this buffer.</p>
+<p>So, what exactly is the issue with the pre-patch code? First, an obvious problem is that before the fix, the code only checked whether <code>stackLocation-&gt;Parameters.Read.Length</code> was less than 8. This is clearly incorrect because the size of this buffer should normally be 12 (0xC bytes). It is unclear why it was written as 8.</p>
+<p>But does this actually have any impact? At first, I didn&rsquo;t see it, perhaps because it isn&rsquo;t very clear from the pseudocode. Let&rsquo;s look directly at the assembly:</p>
+<p><img src="/img/CVE-2024-43560_4.png" alt="image.png"></p>
+<p>After checking if <code>stackLocation-&gt;Parameters.Read.Length</code> is less than 8, the pre-patch code checks whether <code>[sys_buf] + 12</code> is larger than <code>[sys_buf] + sys_buf.size</code>. That is, it checks if the end address of <code>sys_buf</code> calculated from the <code>Size</code> field is beyond the address of <code>sys_buf</code> plus 12 bytes. Only if the size is large enough will it access the <code>PowerupReason</code> field. This seems fine at first glance—isn&rsquo;t it just checking if the <code>sys_buf</code> size is at least 12 bytes? But then I realized: the size of <code>sys_buf</code> obtained here does not come from the <code>InputBufferSize</code> parameter in <code>IoBuildDeviceIoControlRequest</code> (i.e., the size obtained via <code>sizeof(STORAGE_IDLE_POWERUP_REASON)</code>), but rather from the <code>Size</code> field inside the <code>PowerupReason</code> structure, which is user-controlled!</p>
+<p>If an attacker passes a <code>PowerupReason</code> buffer of size 8 when constructing the request via <code>IoBuildDeviceIoControlRequest</code>, but sets the <code>Size</code> field inside that buffer to 12, it will still pass the check. However, when the driver accesses the <code>PowerupReason</code> field after passing the check, an out-of-bounds access occurs, because the <code>PowerupReason</code> field is located at offset 8.</p>
+<p>Therefore, this is an out-of-bounds write vulnerability.</p>
+<p>Microsoft&rsquo;s fix is simply changing 8 to 12, while also updating the contents of the <code>OutputBuffer</code> (which also acts as the input <code>PowerupReason</code>) in a more standardized manner rather than directly trusting the contents from <code>InputBuffer</code> (also <code>PowerupReason</code>).</p>
+<h2 id="4-vulnerability-triggering">4. Vulnerability Triggering</h2>
+<p>With the above analysis, triggering the vulnerability is relatively straightforward. Let&rsquo;s look at the function call chain:</p>
+<p><img src="/img/CVE-2024-43560_5.png" alt="image.png"></p>
+<p>The call chain is not deep. Examining the upper-level code shows that the vulnerable function is called directly once the request type is identified. Therefore, there are no other conditions to satisfy, and we can directly call <code>DeviceIoControl</code> to trigger the vulnerability.</p>
+<p>The <a href="https://doxygen.reactos.org/de/da9/cdrom_8h.html#a9cc295e4a24cdfbf833511205a33990c">example code</a> we found earlier also constructed an IRP request and called the driver, but did not use the <code>DeviceIoControl</code> method because it is OS-level code. While we can refer to this example when writing our own PoC, we cannot copy it directly.</p>
+<p>Referring to <code>IoBuildDeviceIoControlRequest</code>, the <code>DeviceIoControl</code> call is as follows:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>status <span style="color:#f92672">=</span> <span style="color:#a6e22e">DeviceIoControl</span>(  
+</span></span><span style="display:flex;"><span>    hDevice,  
+</span></span><span style="display:flex;"><span>    IOCTL_STORAGE_GET_IDLE_POWERUP_REASON,  
+</span></span><span style="display:flex;"><span>    PowerupReason,  
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">sizeof</span> (STORAGE_IDLE_POWERUP_REASON),  
+</span></span><span style="display:flex;"><span>    PowerupReason,  
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">sizeof</span> (STORAGE_IDLE_POWERUP_REASON),  
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&amp;</span>bytesReturned,  
+</span></span><span style="display:flex;"><span>    NULL  
+</span></span><span style="display:flex;"><span>);
+</span></span></code></pre></div><p>We only need to obtain <code>hDevice</code> and then construct a <code>PowerupReason</code> that can trigger the vulnerability.</p>
+<p>In the example code, there is a parameter <code>deviceExtension</code> of type <code>PCDROM_DEVICE_EXTENSION</code>, which suggests that <code>hDevice</code> should be a handle to a CDROM device.</p>
+<p>Searching for &ldquo;cdrom&rdquo; in WinObj64.exe reveals the following:</p>
+<p><img src="/img/CVE-2024-43560_6.png" alt="image.png"></p>
+<p>Although it is not clear what exactly these are, <code>\Device\0000006e</code> seems more reasonable.</p>
+<p>Therefore, we only need to call <code>NtCreateFile</code> to obtain the device handle, construct the malformed <code>PowerupReason</code> to trigger the vulnerability, and then call <code>DeviceIoControl</code>.</p>
+<p>However, the issue with this vulnerability is that although we write beyond the bounds of the <code>PowerupReason</code> buffer by definition, the memory actually allocated by the system is larger than 8 bytes. Thus, in most cases, the PoC will not cause a system crash. Success in triggering the vulnerability can only be verified via debugging. Moreover, the out-of-bounds written content is not controlled, so the direct impact of this vulnerability is minimal, though it might be chained with other vulnerabilities for exploitation.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">// Check the stored buffer length, which is indeed 8
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#ae81ff">1</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> dd ffffe28ff4a43f20 L1
+</span></span><span style="display:flex;"><span>ffffe28f<span style="color:#960050;background-color:#1e0010">`</span>f4a43f20  <span style="color:#ae81ff">0000000</span><span style="color:#ae81ff">8</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// Buffer content
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#ae81ff">1</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> dd rdx l4
+</span></span><span style="display:flex;"><span>ffffe28f<span style="color:#960050;background-color:#1e0010">`</span>f4c11f80  <span style="color:#ae81ff">00000001</span> <span style="color:#ae81ff">0000000</span>c <span style="color:#ae81ff">00000000</span> <span style="color:#ae81ff">00000000</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// Information of the pool containing rdx, size is 96 bytes
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#ae81ff">1</span><span style="color:#f92672">:</span> kd<span style="color:#f92672">&gt;</span> <span style="color:#f92672">!</span>pool rdx
+</span></span><span style="display:flex;"><span>Pool page ffffe28ff4c11f80 region is Nonpaged pool
+</span></span><span style="display:flex;"><span> ffffe28ff4c11050 size:   <span style="color:#ae81ff">60</span> previous size:    <span style="color:#ae81ff">0</span>  (Allocated)  MmSe
+</span></span><span style="display:flex;"><span> ......
+</span></span><span style="display:flex;"><span> ffffe28ff4c11ef0 size:   <span style="color:#ae81ff">60</span> previous size:    <span style="color:#ae81ff">0</span>  (Allocated)  MmSe
+</span></span><span style="display:flex;"><span><span style="color:#f92672">*</span>ffffe28ff4c11f50 size:   <span style="color:#ae81ff">60</span> previous size:    <span style="color:#ae81ff">0</span>  (Allocated) <span style="color:#f92672">*</span>IoSB Process: ffffe28ff4a340c0
+</span></span><span style="display:flex;"><span>        Owning component : <span style="color:#a6e22e">Unknown</span> (update pooltag.txt)
+</span></span></code></pre></div><p>We can see that the buffer address is <code>rdx (ffffe28ff4c11f80)</code>, and its pool page region starts from <code>ffffe28ff4c11f50</code> with a size of 96 bytes (0x60). That is, although the buffer size is nominally 8 bytes, it can actually hold up to 48 bytes without triggering a crash.</p>
+<h2 id="5-reflections">5. Reflections</h2>
+<p>Actually, after locating the vulnerable function, I lacked confidence because I couldn&rsquo;t immediately figure out the vulnerability principle. So, I took a look at the materials provided by Microsoft. Without these resources, I would still suspect the vulnerability is here, but might have missed the correct path due to a lack of confidence. <strong>Belief that a vulnerability exists -&gt; failure to find the vulnerability due to unclear data structures</strong>. How can we establish a clearer connection between the two? While believing a vulnerability exists is just psychological self-justification, identifying that a data structure is incorrect requires the accumulation of experience and knowledge.</p>
+<p>Imagine how I would handle this vulnerability without external materials:</p>
+<ol>
+<li>After locating the vulnerable function, <strong>I need to analyze the differences before and after the patch with more confidence or certainty</strong>. This way, I could locate the red and yellow boxes in the diagram and notice the difference between 8 and 12. Such numeric differences would further reinforce the conclusion that &ldquo;this is the vulnerable function.&rdquo;</li>
+<li>Despite the numeric difference, it would be hard for me to realize that a buffer is involved here (specifically, that <code>MasterIrp</code> is actually another field in the union structure). I would highly likely have stopped here. This is more about cultivating awareness, so we can only assume that I <strong>developed this awareness through further study</strong>.</li>
+<li>After guessing that a buffer is involved, I would have more confidence and motivation to search for information. Visiting Microsoft&rsquo;s official documentation is a natural step, and I would likely find relevant content about <code>PSTORAGE_IDLE_POWERUP_REASON</code> and successfully determine the vulnerability mechanism.</li>
+<li>In the exploitation phase, the main obstacle is obtaining the device handle. In the write-up, the reason I looked for the CDROM handle seems like working backward from a known result—since I knew I had to find CDROM, I focused on the path related to CDROM in the source code. The uncertainty stems from the fact that I am only familiar with passing standard file path parameters to the <code>CreateFile</code> function, and <strong>unfamiliar with deeper system programming</strong>. Furthermore, when I first started writing the PoC code, I used the <code>CreateFile</code> function, which failed; the <code>NtCreateFile</code> function must be used instead. Actually, if I limit my learning strictly to writing PoC code, the scope is quite narrow. Since my previous analysis focused more on the vulnerability principle and I was unfamiliar with the exploit code, this area of capability should be improved quickly.</li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/cve/" rel="tag">cve</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/exploit/" rel="tag">exploit</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+
+
+
+
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2026 Logic Security.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+</body>
+</html>

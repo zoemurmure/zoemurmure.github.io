@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>Win32k Type Confusion Vulnerability Analysis Guide - Logic Security</title>
+	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
+	<meta name="description" content="Win32k Type Confusion Vulnerability Analysis Guide">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link rel="dns-prefetch" href="//fonts.googleapis.com">
+	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700">
+
+	<link rel="stylesheet" href="/css/style.css">
+	
+
+	<link rel="shortcut icon" href="/favicon.ico">
+		
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPJWE5ZVG9"></script>
+<script>
+var doNotTrack = false;
+if (!doNotTrack) {
+	window.dataLayer = window.dataLayer || [];
+	function gtag(){dataLayer.push(arguments);}
+	gtag('js', new Date());
+	gtag('config', 'G-CPJWE5ZVG9', { 'anonymize_ip': false });
+}
+</script>
+
+</head>
+<body class="body">
+	<div class="container container--outer">
+		<header class="header">
+	<div class="container header__container">
+		
+	<div class="logo logo--mixed">
+		<a class="logo__link" href="/" title="Logic Security" rel="home">
+			<div class="logo__item logo__imagebox">
+					<img class="logo__img" src="/img/blog_img.png">
+				</div><div class="logo__item logo__text">
+					<div class="logo__title">Logic Security</div>
+					
+				</div>
+		</a>
+	</div>
+		
+<nav class="menu">
+	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+		<span class="menu__btn-title" tabindex="-1">Menu</span>
+	</button>
+	<ul class="menu__list">
+		<li class="menu__item">
+			<a class="menu__link" href="/">
+				
+				<span class="menu__text">Home</span>
+				
+			</a>
+		</li>
+		<li class="menu__item">
+			<a class="menu__link" href="/posts/history_posts/">
+				
+				<span class="menu__text">Collection of Historical Posts</span>
+				
+			</a>
+		</li>
+		
+		
+		
+			
+				<li class="menu__item menu__item--active">
+					<a class="menu__link" href="/posts/win32k_1732_21881/">
+						<span class="menu__text" style="font-weight: bold;">English</span>
+					</a>
+				</li>
+			
+				<li class="menu__item">
+					<a class="menu__link" href="/zh/posts/win32k_1732_21881/">
+						<span class="menu__text" style="">中文</span>
+					</a>
+				</li>
+			
+		
+	</ul>
+</nav>
+
+
+	</div>
+</header>
+		<div class="wrapper flex">
+			<div class="primary">
+			
+<main class="main" role="main">
+	<article class="post">
+		<header class="post__header">
+			<h1 class="post__title">Win32k Type Confusion Vulnerability Analysis Guide</h1>
+			<div class="post__meta meta"><div class="meta__item-author meta__item">
+	<svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 12 16"><path d="M6 1c2.2 0 3.5 2 3.5 4.5C9.5 7 8.9 8.2 8 9c2.9.8 4 2.5 4 5v1H0v-1c0-2.5 1.1-4.2 4-5-.9-.8-1.5-2-1.5-3.5C2.5 3 3.8 1 6 1z"/></svg><span class="meta__text">zoemurmure</span>
+</div>
+<div class="meta__item-datetime meta__item">
+	<svg class="meta__icon icon icon-time" width="16" height="14" viewBox="0 0 30 28"><path d="M15 0C7 0 1 6 1 14s6 14 14 14 14-6 14-14S23 0 15 0zm0 25C9 25 4 20 4 14S9 3 15 3s11 5 11 11-5 11-11 11zm1-18h-2v8.4l6.8 4.4L22 18l-6-3.8V7z"/></svg><time class="meta__text" datetime="2023-02-07T14:25:08&#43;08:00">February 07, 2023</time></div>
+
+
+    <span id="busuanzi_container_page_pv">|<span id="busuanzi_value_page_pv"></span><span>
+    
+        <span class="post-date">4643 words</span>, <span class="more-meta">22 min read</span>
+    
+
+<div class="meta__item-categories meta__item"><svg class="meta__icon icon icon-category" width="16" height="16" viewBox="0 0 16 16"><path d="m7 2l1 2h8v11h-16v-13z"/></svg><span class="meta__text"><a class="meta__link" href="/categories/vulnerability-analysis/" rel="category">Vulnerability Analysis</a>
+	</span>
+</div></div>
+		</header>
+		<div class="content post__content clearfix">
+			<h2 id="0-preface">0. Preface</h2>
+<p>As we all know, win32k has contributed significantly to Windows privilege escalation vulnerabilities in recent years. I have always wanted to understand the principles of these vulnerabilities and read many related papers for this purpose. However, as a novice in kernel vulnerability research, the write-ups on win32k vulnerabilities written by experts still looked like gibberish to me.</p>
+<p>Of course, I know what UAF (Use-After-Free) and type confusion are, and I also know that many win32k vulnerabilities are caused by callback functions. However, when all these concepts are combined together, along with technical jargon and extremely long function names, it becomes a completely different story.</p>
+<p>Therefore, through analyzing two vulnerabilities, CVE-2021-1732 and CVE-2022-21881, I would like to review the confusion I encountered when facing such vulnerabilities and try to resolve them. This way, when encountering win32k vulnerabilities in the future, I can target the problems directly and solve them quickly.</p>
+<h2 id="1-basic-knowledge">1. Basic Knowledge</h2>
+<h3 id="11-infrastructure">1.1 Infrastructure</h3>
+<p>Before learning about win32k, my understanding of system calls was simply that an application calls a function in a DLL to achieve some system functionality. If kernel involvement is required, the DLL will handle the kernel-related matters internally. Each DLL is just a collection of associated functionalities.</p>
+<p>When I first tried to understand win32k, the first fact I was told was that win32k mainly handles Windows GUI-related issues. As an ordinary user who uses a GUI system daily, I had a subconscious misconception that GUI is everything. So my first reaction was: how could all functionalities be packed into a single file?</p>
+<p>However, if you think carefully, or look at the DLL files under the <code>C:/Windows/System32</code> directory, you will realize that Windows has too many features: communications, encryption, email, browsers, etc. The reason I thought GUI was everything is that many functionalities are ultimately presented to the user visually through the GUI. Therefore, it can be understood that win32k is the cornerstone of other functionalities, and other functionalities rely on win32k&rsquo;s features to some degree. In fact, besides win32k, there is also csrss, and both together constitute the Win32 subsystem. For more details on this, you can refer to the <strong>Historical Background</strong> section of my previous article <a href="https://www.zoemurmure.top/posts/csrss_base/">CSRSS Basic Knowledge</a>.</p>
+<h3 id="12-user-mode-gui-concepts">1.2 User-Mode GUI Concepts</h3>
+<p>I recommend all friends who have doubts about win32k first read Chapter 3, &ldquo;Windows and Messages&rdquo;, of &ldquo;Programming Windows (5th Edition)&rdquo;. I read part of this book from a programming perspective during my college years, but looking back at it now, I still found many details that I had missed.</p>
+<p>A key concept is that Windows GUI programming is actually a form of &ldquo;object-oriented programming&rdquo;, where windows are objects. Those who are familiar with OOP know that objects are created based on classes, and each object has its corresponding data and methods. When creating a window, you need to register a window class first and specify the window procedure.</p>
+<p>Here is a snippet of code from the book:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">int</span> WINAPI <span style="color:#a6e22e">WinMain</span> (HINSTANCE hInstance, HINSTANCE hPrevInstance,
+</span></span><span style="display:flex;"><span>                    PSTR szCmdLine, <span style="color:#66d9ef">int</span> iCmdShow)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>     <span style="color:#66d9ef">static</span> TCHAR szAppName[] <span style="color:#f92672">=</span> TEXT (<span style="color:#e6db74">&#34;HelloWin&#34;</span>) ;
+</span></span><span style="display:flex;"><span>     HWND         hwnd ;
+</span></span><span style="display:flex;"><span>     MSG          msg ;
+</span></span><span style="display:flex;"><span>     WNDCLASS     wndclass ;
+</span></span><span style="display:flex;"><span>     wndclass.style         <span style="color:#f92672">=</span> CS_HREDRAW <span style="color:#f92672">|</span> CS_VREDRAW ;
+</span></span><span style="display:flex;"><span>     wndclass.lpfnWndProc   <span style="color:#f92672">=</span> WndProc ;
+</span></span><span style="display:flex;"><span>     wndclass.cbClsExtra    <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span> ;
+</span></span><span style="display:flex;"><span>     wndclass.cbWndExtra    <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span> ;
+</span></span><span style="display:flex;"><span>     wndclass.hInstance     <span style="color:#f92672">=</span> hInstance ;
+</span></span><span style="display:flex;"><span>     wndclass.hIcon         <span style="color:#f92672">=</span> LoadIcon (NULL, IDI_APPLICATION) ;
+</span></span><span style="display:flex;"><span>     wndclass.hCursor       <span style="color:#f92672">=</span> LoadCursor (NULL, IDC_ARROW) ;
+</span></span><span style="display:flex;"><span>     wndclass.hbrBackground <span style="color:#f92672">=</span> (HBRUSH) GetStockObject (WHITE_BRUSH) ;
+</span></span><span style="display:flex;"><span>     wndclass.lpszMenuName  <span style="color:#f92672">=</span> NULL ;
+</span></span><span style="display:flex;"><span>     wndclass.lpszClassName <span style="color:#f92672">=</span> szAppName ;
+</span></span><span style="display:flex;"><span>     <span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>RegisterClass (<span style="color:#f92672">&amp;</span>wndclass))
+</span></span><span style="display:flex;"><span>     {
+</span></span><span style="display:flex;"><span>          MessageBox (NULL, TEXT (<span style="color:#e6db74">&#34;This program requires Windows NT!&#34;</span>), 
+</span></span><span style="display:flex;"><span>                      szAppName, MB_ICONERROR) ;
+</span></span><span style="display:flex;"><span>          <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span> ;
+</span></span><span style="display:flex;"><span>     }
+</span></span><span style="display:flex;"><span>     hwnd <span style="color:#f92672">=</span> CreateWindow (szAppName,                  <span style="color:#75715e">// window class name
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          TEXT (<span style="color:#e6db74">&#34;The Hello Program&#34;</span>), <span style="color:#75715e">// window caption
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          WS_OVERLAPPEDWINDOW,        <span style="color:#75715e">// window style
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          CW_USEDEFAULT,              <span style="color:#75715e">// initial x position
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          CW_USEDEFAULT,              <span style="color:#75715e">// initial y position
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          CW_USEDEFAULT,              <span style="color:#75715e">// initial x size
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          CW_USEDEFAULT,              <span style="color:#75715e">// initial y size
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          NULL,                       <span style="color:#75715e">// parent window handle
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          NULL,                       <span style="color:#75715e">// window menu handle
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          hInstance,                  <span style="color:#75715e">// program instance handle
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                          NULL) ;                     <span style="color:#75715e">// creation parameters
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>     ShowWindow (hwnd, iCmdShow) ;
+</span></span><span style="display:flex;"><span>     UpdateWindow (hwnd) ;
+</span></span><span style="display:flex;"><span>     <span style="color:#66d9ef">while</span> (GetMessage (<span style="color:#f92672">&amp;</span>msg, NULL, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">0</span>))
+</span></span><span style="display:flex;"><span>     {
+</span></span><span style="display:flex;"><span>          TranslateMessage (<span style="color:#f92672">&amp;</span>msg) ;
+</span></span><span style="display:flex;"><span>          DispatchMessage (<span style="color:#f92672">&amp;</span>msg) ;
+</span></span><span style="display:flex;"><span>     }
+</span></span><span style="display:flex;"><span>     <span style="color:#66d9ef">return</span> msg.wParam ;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Here, <code>WNDCLASS</code> is the window class, which specifies the window procedure <code>lpfnWndProc</code>, the class name <code>lpszClassName</code>, and other attributes of the window. Note the <code>cbWndExtra</code> field. This field tells the system to reserve some extra space internally for windows created from this window class. If this field is non-zero, you can later access the extra space using the <code>SetWindowLong</code> and <code>GetWindowLong</code> functions, which will be discussed below.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>LONG <span style="color:#a6e22e">SetWindowLong</span>( 
+</span></span><span style="display:flex;"><span>  HWND hWnd, 
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">int</span> nIndex,       <span style="color:#75715e">// Offset in the extra space of the value to be set, valid range [0, cbWndExtra-4]
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  LONG dwNewLong    <span style="color:#75715e">// Value to be set
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>); 
+</span></span></code></pre></div><p>Then, <code>RegisterClass</code> is used to register the window class, and when calling <code>CreateWindow</code> to create the window, the class name <code>szAppName</code> is passed as the first parameter to instantiate a window of this class.</p>
+<h3 id="13-kernel-mode-gui-concepts">1.3 Kernel-Mode GUI Concepts</h3>
+<p>For this section, you can refer to the background knowledge introduction of the paper &ldquo;Kernel Attacks through User-Mode Callbacks&rdquo;.</p>
+<p>Windows uses the window manager to manage the GUI. The window manager also treats user entities like windows and menus as user objects, and maintains a handle table in each user session to track these objects. When we provide a handle value of a user entity during user-mode programming, the window manager translates this handle value into the corresponding object in kernel space based on the handle table.</p>
+<p>User objects are represented by different data structures in the kernel. The &ldquo;extra space reserved internally by the system for windows created from this window class&rdquo; we mentioned above is stored in the data structure <code>win32k!tagWND</code>. Since Microsoft has removed this structure from symbols and the structure in Win10 has changed significantly compared to Win7, we can only guess the fields through reverse engineering and dynamic debugging. Fortunately, some experts have analyzed this structure (I have modified some details based on my own debugging):</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>ptagWND  <span style="color:#75715e">// In the kernel, call ValidateHwnd passing the user-mode window handle to return this data pointer
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#ae81ff">0x00</span> hWnd
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">0x10</span> unknown
+</span></span><span style="display:flex;"><span>        <span style="color:#ae81ff">0x00</span> pTEB
+</span></span><span style="display:flex;"><span>            <span style="color:#ae81ff">0x220</span> pEPROCESS(of current process)
+</span></span><span style="display:flex;"><span>    <span style="color:#ae81ff">0x18</span> unknown
+</span></span><span style="display:flex;"><span>        <span style="color:#ae81ff">0x80</span> kernel desktop heap base   <span style="color:#75715e">// Kernel desktop heap base
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#ae81ff">0x28</span> ptagWNDk                   <span style="color:#75715e">// We need to focus on this structure, which is defined below:
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#ae81ff">0xA8</span> spMenu
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">tagWNDK</span> {
+</span></span><span style="display:flex;"><span>    ULONG64 hWnd;                   <span style="color:#75715e">//+0x00
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONG64 OffsetToDesktopHeap;    <span style="color:#75715e">//+0x08 Offset of tagWNDK relative to the desktop heap base
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    ULONG64 state;                  <span style="color:#75715e">//+0x10
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD dwExStyle;                <span style="color:#75715e">//+0x18
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD dwStyle;                  <span style="color:#75715e">//+0x1C
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    BYTE gap[<span style="color:#ae81ff">0x38</span>];
+</span></span><span style="display:flex;"><span>    RECT rect;                      <span style="color:#75715e">//+0x58
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    BYTE gap1[<span style="color:#ae81ff">0x68</span>];
+</span></span><span style="display:flex;"><span>    ULONG64 cbWndExtra;             <span style="color:#75715e">//+0xC8 Size of the extra space
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    BYTE gap2[<span style="color:#ae81ff">0x18</span>];
+</span></span><span style="display:flex;"><span>    DWORD dwExtraFlag;              <span style="color:#75715e">//+0xE8 Determines the addressing mode of SetWindowLong
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    BYTE gap3[<span style="color:#ae81ff">0x10</span>];                <span style="color:#75715e">//+0xEC
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    DWORD cbWndServerExtra;         <span style="color:#75715e">//+0xFC
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    BYTE gap5[<span style="color:#ae81ff">0x28</span>];
+</span></span><span style="display:flex;"><span>    ULONG64 pExtraBytes;            <span style="color:#75715e">//+0x128 Mode 1: Kernel offset, Mode 2: User-mode pointer
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>}
+</span></span></code></pre></div><p>The <code>dwExtraFlag</code> and <code>pExtraBytes</code> fields affect the execution flow of <code>SetWindowLong</code>. Since they are related to the vulnerabilities analyzed below, a detailed explanation is provided here.</p>
+<p>First, it must be clear that when an application calls <code>SetWindowLong</code> to set data in the extra space, <code>win32kfull!NtUserSetWindowLong</code> is invoked in the kernel. This function further calls <code>xxxSetWindowLong</code>. The meaning of these two fields is reflected in the <code>xxxSetWindowLong</code> function:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">__int64</span> <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">xxxSetWindowLong</span>(<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">tagWND</span> <span style="color:#f92672">*</span>tagWND, <span style="color:#66d9ef">int</span> nIndex, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> dwNewLong, <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> a4, <span style="color:#66d9ef">int</span> a5) {
+</span></span><span style="display:flex;"><span>    ...
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( nIndex_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">4</span>i64 <span style="color:#f92672">&lt;=</span> cbWndServerExtra_1 )
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      v31 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x23</span>);
+</span></span><span style="display:flex;"><span>      dwOldLong <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(nIndex_1 <span style="color:#f92672">+</span> v31);
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>(nIndex_2 <span style="color:#f92672">+</span> v31) <span style="color:#f92672">=</span> dwNewLong_1;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      v18 <span style="color:#f92672">=</span> nIndex_1 <span style="color:#f92672">-</span> cbWndServerExtra_1;
+</span></span><span style="display:flex;"><span>      pExtraBytes <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(tagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(tagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xE8</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x800</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )     <span style="color:#75715e">// When dwExtraFlag &amp; 0x800 is non-zero
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        dst <span style="color:#f92672">=</span> (pExtraBytes <span style="color:#f92672">+</span> v18 <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">3</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x80</span>i64));<span style="color:#75715e">// pExtraBytes stores the offset of the extra space relative to the desktop heap base
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      <span style="color:#66d9ef">else</span>                                        <span style="color:#75715e">// When dwExtraFlag &amp; 0x800 is zero
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        dst <span style="color:#f92672">=</span> (v18 <span style="color:#f92672">+</span> pExtraBytes);                <span style="color:#75715e">// pExtraBytes stores the address of the extra space
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      dwOldLong <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>dst;
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>dst <span style="color:#f92672">=</span> dwNewLong_1;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>As we can see, the <code>dwExtraFlag</code> field controls the interpretation of the <code>pExtraBytes</code> field: in one case it stores an address offset, and in another case it stores an address. If we can mismatch these two fields through some means, it will lead to type confusion.</p>
+<h3 id="14-transitions-between-kernel-mode-and-user-mode">1.4 Transitions between Kernel-Mode and User-Mode</h3>
+<p>Sometimes win32k needs to execute some functions in user mode, such as calling hooks defined by the application, providing event notifications, or transferring data with user mode. In these cases, it transitions from kernel mode to user mode via <code>KeUserModeCallback</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>NTSTATUS <span style="color:#a6e22e">KeUserModeCallback</span> (
+</span></span><span style="display:flex;"><span>    IN ULONG ApiNumber,
+</span></span><span style="display:flex;"><span>    IN PVOID InputBuffer,
+</span></span><span style="display:flex;"><span>    IN ULONG InputLength,
+</span></span><span style="display:flex;"><span>    OUT PVOID <span style="color:#f92672">*</span>OutputBuffer,
+</span></span><span style="display:flex;"><span>    IN PULONG OutputLength );
+</span></span></code></pre></div><p><code>ApiNumber</code> specifies the index of the callback function to be called in the function pointer table <code>USER32!apfnDispatch</code>. This function pointer table is copied into the PEB (specifically <code>PEB.KernelCallbackTable</code>) when the process initializes USER32.dll. We can find this table in USER32.dll:</p>
+<pre tabindex="0"><code>apfnDispatch    0x00 dq offset __fnCOPYDATA  ; DATA XREF: _UserClientDllInitialize+353↑o
+                0x01 dq offset __fnCOPYGLOBALDATA
+                0x02 dq offset __fnDWORD
+                      ......
+                0x7B dq offset __xxxClientAllocWindowClassExtraBytes
+                0x7C dq offset __xxxClientFreeWindowClassExtraBytes
+                0x7D dq offset __fnGETWINDOWDATA
+                0x7E dq offset __fnINOUTSTYLECHANGE
+                0x7F dq offset __fnHkINLPMOUSEHOOKSTRUCTEX
+                0x80 dq offset __xxxClientCallDefWindowProc
+</code></pre><p>Therefore, if we can hook the functions in the function pointer table before the user-mode callback is triggered, the hooked function will execute our desired code when it is called.</p>
+<p>In kernel mode, the window manager manages various resources through critical sections and global locks to prevent access conflicts or Use-After-Free (UAF) issues. However, when win32k wants to enter user mode, it must first leave the critical section. This allows user-mode code to freely modify object attributes, reallocate arrays, etc. If the kernel does not properly validate the owned resources after returning from the user-mode callback, it might use data tampered with by the user-mode callback function.</p>
+<p>Another minor detail: because transitions between kernel mode and user mode are prone to issues, win32k follows a default naming convention where functions that may trigger such transitions are prefixed with <code>xxx</code> or <code>zzz</code> to facilitate tracking and checking.</p>
+<h2 id="2-cve-2021-1732-vulnerability-analysis">2. CVE-2021-1732 Vulnerability Analysis</h2>
+<h3 id="21-patch-analysis">2.1 Patch Analysis</h3>
+<p>CVE-2022-21882 is a bypass of CVE-2021-1732, so I will analyze both vulnerabilities. Let&rsquo;s first look at CVE-2021-1732. This vulnerability was patched in February 2021, and the flaw occurs during window creation. Let&rsquo;s compare the <code>win32kfull!xxxCreateWindowEx</code> function between the January and February patches.</p>
+<p>Before the patch:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">5</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) <span style="color:#f92672">=</span> xxxClientAllocWindowClassExtraBytes(cbWndExtra);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!*</span>(<span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">5</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    v265 <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">goto</span> LABEL_202;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( IsWindowBeingDestroyed(tagWND) <span style="color:#f92672">||</span> (<span style="color:#f92672">*</span>(_HMPheFromObject(v97) <span style="color:#f92672">+</span> <span style="color:#ae81ff">25</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">5</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;         <span style="color:#75715e">// Set pExtraBytes to zero
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">goto</span> destroyWindow;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>LABEL_212:
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( PsGetWin32KFilterSet() <span style="color:#f92672">!=</span> <span style="color:#ae81ff">5</span> <span style="color:#f92672">||</span> v94 )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    v101 <span style="color:#f92672">=</span> v275;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span></code></pre></div><p>Before the patch, the address of the space allocated by <code>xxxClientAllocWindowClassExtraBytes</code> was directly assigned to the <code>pExtraBytes</code> field. Note that the function has an <code>xxx</code> prefix, indicating that a transition to user mode occurs inside. Based on the analysis above, we know that <code>pExtraBytes</code> is associated with the <code>dwExtraFlag</code> field, but no check is performed on <code>dwExtraFlag</code> here.</p>
+<p>After the patch:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  v96 <span style="color:#f92672">=</span> xxxClientAllocWindowClassExtraBytes(v95);
+</span></span><span style="display:flex;"><span>  v338 <span style="color:#f92672">=</span> v96;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>v96 )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    v261 <span style="color:#f92672">=</span> <span style="color:#ae81ff">2</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">goto</span> LABEL_202;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( IsWindowBeingDestroyed(tagWND_1)
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">||</span> (<span style="color:#f92672">*</span>(_HMPheFromObject(v97) <span style="color:#f92672">+</span> <span style="color:#ae81ff">25</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">||</span> (v316[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64, tagWND<span style="color:#f92672">::</span>RedirectedFieldpExtraBytes<span style="color:#f92672">::</span><span style="color:#66d9ef">operator</span><span style="color:#f92672">!=&lt;</span><span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span><span style="color:#f92672">&gt;</span>(tagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x140</span>, v316)) )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// The code for destroyWindow remains unchanged here
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
+</span></span><span style="display:flex;"><span>  tagWNDK <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(tagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">5</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(tagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xE8</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x800</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )      
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    MicrosoftTelemetryAssertTriggeredNoArgsKM();
+</span></span><span style="display:flex;"><span>    tagWNDK <span style="color:#f92672">=</span> tagWND[<span style="color:#ae81ff">5</span>];
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">*</span>(tagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>) <span style="color:#f92672">=</span> v96;
+</span></span><span style="display:flex;"><span>LABEL_215:
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( PsGetWin32KFilterSet() <span style="color:#f92672">!=</span> <span style="color:#ae81ff">5</span> <span style="color:#f92672">||</span> v93 )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    v102 <span style="color:#f92672">=</span> v270;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>  ...
+</span></span></code></pre></div><p>As shown, after the patch, the assignment is not done directly. Instead, an additional check is added: <code>(v316[0] = 0i64, tagWND::RedirectedFieldpExtraBytes::operator!=&lt;unsigned __int64&gt;(tagWND + 0x140, v316))</code>. If this check evaluates to true, the window destruction path is triggered directly, aborting the normal execution flow. The function is defined as:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span><span style="color:#66d9ef">bool</span> <span style="color:#66d9ef">__fastcall</span> tagWND<span style="color:#f92672">::</span>RedirectedFieldpExtraBytes<span style="color:#f92672">::</span><span style="color:#66d9ef">operator</span><span style="color:#f92672">!=&lt;</span><span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int64</span><span style="color:#f92672">&gt;</span>(<span style="color:#66d9ef">__int64</span> a1, _QWORD <span style="color:#f92672">*</span>a2)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(a1 <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x118</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) <span style="color:#f92672">!=</span> <span style="color:#f92672">*</span>a2;  <span style="color:#75715e">// i.e., *(*(tagWND + 0x140 - 0x118) + 0x128) != 0
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>}
+</span></span></code></pre></div><p>According to the comments, this function checks whether the value of the <code>pExtraBytes</code> field is non-zero. If it is non-zero, it returns true.</p>
+<h3 id="22-limitations-of-the-patch">2.2 Limitations of the Patch</h3>
+<p>At present, there are two issues with the patch. The first one is quite obvious: the patch only compares the difference between the <code>pExtraBytes</code> field and 0, without considering its relationship with <code>dwExtraFlag</code>.</p>
+<p>The second issue requires a bit more thought. When we mentioned above that a transition between kernel mode and user mode occurs inside <code>xxxClientAllocWindowClassExtraBytes</code>, it actually means that this function contains many statements, one of which is a call to <code>KeUserModeCallback</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>v2 <span style="color:#f92672">=</span> KeUserModeCallback(<span style="color:#ae81ff">123</span>i64, <span style="color:#f92672">&amp;</span>length, <span style="color:#ae81ff">4</span>i64, <span style="color:#f92672">&amp;</span>outputbuffer, <span style="color:#f92672">&amp;</span>outputlength);
+</span></span></code></pre></div><p>The ApiNumber is 0x7B. According to the definition of <code>USER32!apfnDispatch</code>, this value corresponds to the function <code>__xxxClientAllocWindowClassExtraBytes</code>.</p>
+<p>The actual state transition happens inside <code>KeUserModeCallback</code>. Therefore, a better approach would be to validate the relevant fields immediately after this function call. Otherwise, if other functions call <code>xxxClientAllocWindowClassExtraBytes</code>, the same issue will reoccur.</p>
+<p>The reason it was patched in this specific way is related to the public exploit code.</p>
+<h2 id="3-vulnerability-exploitation">3. Vulnerability Exploitation</h2>
+<p><em>Note: Since this is the first time analyzing a win32k exploit, which involves many concepts unrelated to the specific vulnerability itself, a separate section is dedicated to introducing them.</em></p>
+<p>The exploit code analyzed in this section is obtained from <a href="https://github.com/k-k-k-k-k/CVE-2021-1732/blob/main/CVE-2021-1732_Exploit.cpp">here</a>.</p>
+<h3 id="31-how-to-trigger-type-confusion">3.1 How to Trigger Type Confusion</h3>
+<p>According to the analysis above, if we want to exploit the relationship between <code>pExtraBytes</code> and <code>dwExtraFlag</code>, we need to find a way to modify these two fields when <code>KeUserModeCallback</code> calls the 0x7B user-mode callback, making their meanings mismatch.</p>
+<p>The function that achieves this goal is <code>NtUserConsoleControl</code>, which calls <code>xxxConsoleControl(int num, struct _CONSOLE_PROCESS_INFO *proInfo, int size)</code>. When the <code>num</code> parameter is 6, the function executes the following code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>    ptagWND <span style="color:#f92672">=</span> ValidateHwnd(<span style="color:#f92672">*</span>proInfo);   <span style="color:#75715e">// proInfo stores the window handle
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    pptagWNDK <span style="color:#f92672">=</span> ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">5</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xE8</span>i64) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x800</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )<span style="color:#75715e">// dwExtraFlag &amp; 0x800 != 0
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    {
+</span></span><span style="display:flex;"><span>      heapMem <span style="color:#f92672">=</span> (<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(ptagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x18</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x80</span>i64) <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(ptagWNDK_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>));<span style="color:#75715e">// Kernel desktop heap base + pExtraBytes
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>                                        <span style="color:#75715e">// dwExtraFlag &amp; 0x800 == 0
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    {
+</span></span><span style="display:flex;"><span>      heapMem <span style="color:#f92672">=</span> DesktopAlloc(<span style="color:#f92672">*</span>(ptagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x18</span>), <span style="color:#f92672">*</span>(ptagWNDK_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xC8</span>), <span style="color:#ae81ff">0</span>i64);
+</span></span><span style="display:flex;"><span>      Object[<span style="color:#ae81ff">3</span>] <span style="color:#f92672">=</span> heapMem;
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span>...
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) )           <span style="color:#75715e">// If pExtraBytes was previously non-zero, it is treated as the address of the extra space
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      {
+</span></span><span style="display:flex;"><span>        curProc <span style="color:#f92672">=</span> PsGetCurrentProcess(v24);
+</span></span><span style="display:flex;"><span>        cbWndExtra <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xC8</span>i64);
+</span></span><span style="display:flex;"><span>        pExtraBytes <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64);
+</span></span><span style="display:flex;"><span>        memmove(heapMem, pExtraBytes, cbWndExtra);<span style="color:#75715e">// Move the data in the extra space to the newly allocated space
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(curProc <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x464</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x40000008</span>) <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>          xxxClientFreeWindowClassExtraBytes(ptagWND_1, <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(ptagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">40</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">296</span>i64));
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x128</span>i64) <span style="color:#f92672">=</span> heapMem <span style="color:#f92672">-</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(ptagWND_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x18</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x80</span>i64);<span style="color:#75715e">// Re-assign pExtraBytes to the offset of the newly allocated space relative to the kernel desktop heap base
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span>...
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>pptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xE8</span>i64) <span style="color:#f92672">|=</span> <span style="color:#ae81ff">0x800u</span>;          <span style="color:#75715e">// Set the 0x800 flag for dwExtraFlag
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">goto</span> rtn;
+</span></span></code></pre></div><p>Note that this function actually sets the 0x800 flag for <code>dwExtraFlag</code> and, if necessary, updates <code>pExtraBytes</code> to the corresponding offset value.</p>
+<p>When the 0x7B user callback occurs, the function actually called is <code>user32!_xxxClientAllocWindowClassExtraBytes</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>NTSTATUS <span style="color:#66d9ef">__fastcall</span> <span style="color:#a6e22e">_xxxClientAllocWindowClassExtraBytes</span>(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">int</span> <span style="color:#f92672">*</span>a1)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// [COLLAPSED LOCAL DECLARATIONS. PRESS KEYPAD CTRL-&#34;+&#34; TO EXPAND]
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>  v3 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  v4 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>  Result <span style="color:#f92672">=</span> RtlAllocateHeap(pUserHeap, <span style="color:#ae81ff">8u</span>, <span style="color:#f92672">*</span>a1);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> NtCallbackReturn(<span style="color:#f92672">&amp;</span>Result, <span style="color:#ae81ff">0x18u</span>, <span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>As we can see, it passes the address of the newly allocated space back to the kernel as the first parameter via <code>NtCallbackReturn</code>.</p>
+<p>Thus, when we hook <code>__xxxClientAllocWindowClassExtraBytes</code>, we can call <code>NtUserConsoleControl</code> to modify the <code>dwExtraFlag</code> field and set its 0x800 flag, and then call <code>NtCallbackReturn</code> with a custom <code>pExtraBytes</code> value as the first parameter. Afterwards, the system will treat the <code>pExtraBytes</code> we set as the offset of the extra space relative to the desktop heap base.</p>
+<p>In other words, by triggering type confusion, we can read/write data at <strong>desktop heap base + a limited offset</strong>.</p>
+<h3 id="32-from-type-confusion-to-local-privilege-escalation">3.2 From Type Confusion to Local Privilege Escalation</h3>
+<p>When <a href="https://www.zoemurmure.top/posts/hevd_stackoberflowgs/">learning HEVD</a> previously, I ignored this part of the content, which left me lacking clues when studying the exploitation of this vulnerability. Kernel vulnerabilities generally achieve arbitrary read/write capabilities, but how can such capability be leveraged to achieve privilege escalation? For the vulnerability analyzed this time, we can only read/write <strong>desktop heap base + a limited offset</strong>. How can we escalate privileges under such constraints?</p>
+<p>Reference [7] provides a great answer to this question. Escalating from a kernel vulnerability to local privilege escalation requires three steps:</p>
+<ol>
+<li>Expand the kernel vulnerability into arbitrary read/write primitives;</li>
+<li>Find a kernel address leak method to obtain the address of any kernel object, and thus find the System process via the <code>EPROCESS</code> list;</li>
+<li>Copy the System process token to the exploit process, thereby achieving privilege escalation.</li>
+</ol>
+<h4 id="321-arbitrary-readwrite-primitives">3.2.1 Arbitrary Read/Write Primitives</h4>
+<p>First, a key detail needs to be clarified. From <a href="https://www.zoemurmure.top/posts/hevd_stackoberflowgs/#44-smep-%E7%BB%95%E8%BF%87">learning HEVD</a> and the IDA code analysis above, we know that we can call the <code>HMValidateHandle</code> function, passing a window handle as an argument, to obtain the address of the <code>tagWNDK</code> structure of that window. Since <code>HMValidateHandle</code> is not an exported function, we need to locate its address by scanning the memory using the method described in <a href="https://www.zoemurmure.top/posts/hevd_stackoberflowgs/#44-smep-%E7%BB%95%E8%BF%87">learning HEVD</a>.</p>
+<p>Next, we proceed to obtain arbitrary read/write primitives. Acquiring the primitives mainly involves 3 windows: Window 0, Window 1, and Window 2.</p>
+<ol>
+<li>Create multiple windows (e.g., 50) through window spraying, and destroy the subsequent windows, keeping only the first two as Window 0 and Window 1. Meanwhile, call <code>NtUserConsoleControl</code> to switch Window 0 to the offset mode. Note that we are not exploiting the vulnerability here; it is a normal function call and does not cause type confusion. At this point, Window 0&rsquo;s <code>pExtraBytes</code> field stores the offset of Window 0&rsquo;s extra space;</li>
+<li>Retrieve the offset addresses of the <code>tagWNDK</code> structures for Window 0 and Window 1 by calling <code>HMValidateHandle</code>;</li>
+<li>Create Window 2, and switch Window 2 to offset mode via hooking, while modifying its <code>pExtraBytes</code> field to the offset of Window 0&rsquo;s <code>tagWNDK</code> structure. At this point, we can modify the <code>tagWNDK</code> structure of Window 0 using Window 2&rsquo;s <code>SetWindowLongW</code>;</li>
+<li>&ldquo;Arbitrary&rdquo; write primitive: Modify the <code>cbWndExtra</code> field of Window 0 to the maximum possible value. Now we can perform a very large range of Out-Of-Bounds (OOB) writes via Window 0&rsquo;s <code>SetWindowLongW/SetWindowLongPtrW</code>. Although this is not strictly an &ldquo;arbitrary&rdquo; write, it is sufficient for exploitation;</li>
+</ol>
+<p>The arbitrary read primitive is more complex, and its key lies in the function <code>GetMenuBarInfo</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>BOOL <span style="color:#a6e22e">GetMenuBarInfo</span>(
+</span></span><span style="display:flex;"><span>  [in]      HWND         hwnd,
+</span></span><span style="display:flex;"><span>  [in]      LONG         idObject,   <span style="color:#f92672">//</span> When the value is OBJID_MENU(<span style="color:#f92672">-</span><span style="color:#ae81ff">3</span>), it represents retrieving the menu bar of the specified window
+</span></span><span style="display:flex;"><span>  [in]      LONG         idItem,     <span style="color:#75715e">// When the value is 1, it represents retrieving the information of the first item on the menu, and so on
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  [in, out] PMENUBARINFO pmbi        <span style="color:#75715e">// Buffer to receive the information
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>);
+</span></span></code></pre></div><p>This function eventually calls <code>win32kfull!xxxGetMenuBarInfo</code>. When the value of <code>idObject</code> is <code>-3</code>, it executes the following code block:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(ptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x1F</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x40</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )       <span style="color:#75715e">// 0x1C offset is dwStyle. The value of WS_CHILD is 0x40000000L. Here it checks if WS_CHILD is set, and if so, it aborts
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">goto</span> toEnd;
+</span></span><span style="display:flex;"><span>  spMenu <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xA8</span>);                   <span style="color:#75715e">// Continues execution only if idObject == -3
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  SmartObjStackRefBase<span style="color:#f92672">&lt;</span>tagMENU<span style="color:#f92672">&gt;::</span><span style="color:#66d9ef">operator</span><span style="color:#f92672">=</span>(<span style="color:#f92672">&amp;</span>spMenu_1, spMenu);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>SmartObjStackRef<span style="color:#f92672">&lt;</span>tagMENU<span style="color:#f92672">&gt;::</span><span style="color:#66d9ef">operator</span> <span style="color:#66d9ef">bool</span>(<span style="color:#f92672">&amp;</span>spMenu_1)
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">||</span> idItem_1 <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">||</span> idItem_1 <span style="color:#f92672">&gt;</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>spMenu_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>i64) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x2C</span>i64) )<span style="color:#75715e">// Continues execution only if [+28h]+2ch &gt;= idItem
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">goto</span> toEnd;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  ...
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>spMenu_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x40</span>i64) <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>spMenu_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x44</span>i64) )<span style="color:#75715e">// Offsets +40h and +44h are non-zero
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ( idItem_1 )                             <span style="color:#75715e">// idItem is non-zero
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    {
+</span></span><span style="display:flex;"><span>      ptagWNDK_2 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>);
+</span></span><span style="display:flex;"><span>      x60 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x60</span> <span style="color:#f92672">*</span> idItem_1;                    <span style="color:#75715e">// idItem is set to 1 for ease of calculation
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      pdesired <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>spMenu_1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x58</span>i64);        <span style="color:#75715e">// +58h stores the target address to read minus 0x40
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      desired <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#ae81ff">0x60</span> <span style="color:#f92672">*</span> idItem_1 <span style="color:#f92672">+</span> pdesired <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x60</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(ptagWNDK_2 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x1A</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x40</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> ) <span style="color:#75715e">// Checks if dwExStyle is WS_EX_LAYOUTRTL. Since it&#39;s not set, it enters the else block
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      {
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// pass
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">else</span>                                      <span style="color:#75715e">// Enters here
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      {
+</span></span><span style="display:flex;"><span>        v64 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(desired <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x40</span>) <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(ptagWNDK_2 <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x58</span>);<span style="color:#75715e">// desired + 0x40h, so the input is target - 0x40h
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        pmbi<span style="color:#f92672">-&gt;</span>rcBar.left <span style="color:#f92672">=</span> v64;                 <span style="color:#75715e">// In the output mbi, rcBar.left stores target(0~3) + Rect.left
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        pmbi<span style="color:#f92672">-&gt;</span>rcBar.right <span style="color:#f92672">=</span> v64 <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(x60 <span style="color:#f92672">+</span> pdesired <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x60</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x48</span>i64);<span style="color:#75715e">// In the output mbi, rcBar.right stores rcBar.left + target(8~11)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      }
+</span></span><span style="display:flex;"><span>      v65 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x5C</span>i64) <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(x60 <span style="color:#f92672">+</span> pdesired <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x60</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x44</span>i64);
+</span></span><span style="display:flex;"><span>      pmbi<span style="color:#f92672">-&gt;</span>rcBar.top <span style="color:#f92672">=</span> v65;                    <span style="color:#75715e">// In the output mbi, rcBar.top stores Rect.top + target(4~7)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      v40 <span style="color:#f92672">=</span> v65 <span style="color:#f92672">+</span> <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(x60 <span style="color:#f92672">+</span> pdesired <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x60</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x4C</span>i64);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      <span style="color:#75715e">// pass
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    }
+</span></span><span style="display:flex;"><span>    pmbi<span style="color:#f92672">-&gt;</span>rcBar.bottom <span style="color:#f92672">=</span> v40;                   <span style="color:#75715e">// In the output mbi, rcBar.bottom stores rcBar.top + target(12~15)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
+</span></span></code></pre></div><p><code>spMenu</code> is located at offset 0xA8 of <code>tagWND</code>. If we can modify this field to point to a fake <code>spMenu</code> structure constructed by ourselves, we can achieve arbitrary reads. The <code>fakeSpMenu</code> must satisfy the following conditions:</p>
+<ol>
+<li>The data at offsets 0x40 and 0x44 must be non-zero;</li>
+<li>The pointer at offset 0x28 points to a buffer where the data at offset 0x2C is non-zero;</li>
+<li>The pointer at offset 0x58 points to a buffer which stores the value of the target address we want to read minus 0x40;</li>
+</ol>
+<p>Setting <code>fakeSpMenu</code> cannot be done using the arbitrary write primitive because, up to this point, we have only obtained the offset of <code>tagWNDK</code> and cannot determine the exact location of <code>tagWND</code>. Fortunately, there is a more convenient method to set <code>spMenu</code> — <code>SetWindowLongPtr</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>LONG_PTR <span style="color:#a6e22e">SetWindowLongPtrW</span>(
+</span></span><span style="display:flex;"><span>  [in] HWND     hWnd,
+</span></span><span style="display:flex;"><span>  [in] <span style="color:#66d9ef">int</span>      nIndex,
+</span></span><span style="display:flex;"><span>  [in] LONG_PTR dwNewLong
+</span></span><span style="display:flex;"><span>);
+</span></span></code></pre></div><p>This function is similar to <code>SetWindowLong</code> but operates on 8-byte data. It further calls <code>win32kfull!xxxSetWindowLongPtr</code>. When <code>nIndex</code> is <code>GWLP_ID(-12)</code>, it calls <code>win32kfull!xxxSetWindowData</code> and executes the following code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  <span style="color:#66d9ef">switch</span> ( nIndex )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">case</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">12</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>      ptagWNDK <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">40</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(ptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x1F</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xC0</span>) <span style="color:#f92672">==</span> <span style="color:#ae81ff">0x40</span> )<span style="color:#75715e">// If WS_CHILD is set
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      {
+</span></span><span style="display:flex;"><span>        v18 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xA8</span>);                <span style="color:#75715e">// +A8h spmenu
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#f92672">*</span>(ptagWNDK <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x98</span>) <span style="color:#f92672">=</span> dwNewLong;
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">*</span>(ptagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xA8</span>) <span style="color:#f92672">=</span> dwNewLong;
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// pass
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      }
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// pass
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// pass
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">return</span> v18;
+</span></span></code></pre></div><p>That is to say, if the <code>nIndex</code> parameter is -12 and the window represented by <code>hWnd</code> has the <code>WS_CHILD</code> style, <code>SetWindowLongPtr</code> will set the <code>spMenu</code> of the window and return the old <code>spMenu</code> value as the return value.</p>
+<p>Summary of the arbitrary read primitive:</p>
+<ol>
+<li>Set the <code>WS_CHILD</code> style for Window 1 using the arbitrary write primitive. Note: <code>dwStyle</code> is at offset 0x1C of <code>tagWNDK</code>. As long as Window 1&rsquo;s <code>tagWNDK</code> is located after Window 0&rsquo;s <code>tagWNDK</code>, we can modify Window 1&rsquo;s <code>dwStyle</code> via Window 0&rsquo;s <code>SetWindowLongW/SetWindowLongPtrW</code>;</li>
+<li>Construct a <code>fakeSpMenu</code> structure that satisfies the conditions listed above;</li>
+<li>Set Window 1&rsquo;s <code>spMenu</code> to <code>fakeSpMenu</code> via <code>SetWindowLongPtr</code>;</li>
+<li>Remove the <code>WS_CHILD</code> style of Window 1 using the arbitrary write primitive;</li>
+<li>Call <code>GetMenuBarInfo(hWND1, -3, 1, &amp;mbi)</code>, and calculate the value at the target address according to the code comments above.</li>
+</ol>
+<h4 id="322-obtaining-the-eprocess-address">3.2.2 Obtaining the <code>EPROCESS</code> Address</h4>
+<p>The kernel address leak method has actually been mentioned above: when calling <code>SetWindowLongPtr</code> to set Window 1&rsquo;s <code>spMenu</code> field, it returns the old <code>spMenu</code> value, which is a kernel address. However, the problem is how to obtain the <code>EPROCESS</code> address from it.</p>
+<p>The author of reference [8] mentioned that <code>spMenu</code> stores the <code>EPROCESS</code> of the current process, but did not mention how this information was discovered. If we search purely for the <code>EPROCESS</code> address, we might luckily find its location:</p>
+<pre tabindex="0"><code>// First, determine during debugging that the old spMenu address is fffff0ce808211e0
+
+3: kd&gt; !process 0 0 exp.exe
+PROCESS ffff9d07b784c340
+    SessionId: 1  Cid: 0498    Peb: a67dffa000  ParentCid: 1048
+    DirBase: 153bd000  ObjectTable: ffffdf09dfef9140  HandleCount: 131.
+    Image: exp.exe
+
+3: kd&gt; s fffff0ce808211e0 l10000000 40 c3 84 b7 07 9d ff ff
+fffff0ce`85229010  40 c3 84 b7 07 9d ff ff-01 00 00 00 30 c0 0c 14  @...........0...
+
+3: kd&gt; dqs fffff0ce808211e0
+fffff0ce`808211e0  00000000`000301a7
+fffff0ce`808211e8  00000000`00000001
+fffff0ce`808211f0  00000000`00000000
+fffff0ce`808211f8  ffff9d07`b61ffde0
+fffff0ce`80821200  fffff0ce`808211e0
+fffff0ce`80821208  fffff0ce`81221890
+fffff0ce`80821210  00000000`00021890
+fffff0ce`80821218  00000008`00000000
+fffff0ce`80821220  00000013`00000078
+...
+
+// Observing the data in spMenu, the first thing to check is ffff9d07`b61ffde0 at offset 0x18
+
+3: kd&gt; s ffff9d07`b61ffde0 l10000000 10 90 22 85 ce f0 ff ff
+ffff9d07`b61ffee0  10 90 22 85 ce f0 ff ff-00 00 00 00 00 00 00 00  ..&#34;.............
+ffff9d07`b784c848  10 90 22 85 ce f0 ff ff-b0 44 94 b8 07 9d ff ff  ..&#34;......D......
+</code></pre><p>The above steps confirm that <code>PEPROCESS</code> is stored at <code>[spMenu + 0x18] + 0x100</code>. However, the above derivation was done because I already knew the answer. If all information were unknown, it might be difficult to reach the same conclusion. Perhaps there are more resources online, or the author went through more debugging and analysis.</p>
+<h3 id="33-section-summary">3.3 Section Summary</h3>
+<p>The final process of replacing the token of the current process is a fairly common technique and is not difficult, so it won&rsquo;t be repeated here. At this point, we can leverage the CVE-2021-1732 vulnerability to achieve local privilege escalation.</p>
+<p>As mentioned in Section 2.2, the reason Microsoft patched the vulnerability by checking if the <code>pExtraBytes</code> field is 0 is that the leaked exploit only set the 0x800 flag of <code>dwExtraFlag</code> and modified <code>pExtraBytes</code> to the desired offset by hooking and calling <code>NtUserConsoleControl</code>. Under normal circumstances, if <code>__xxxClientAllocWindowClassExtraBytes</code> is not hooked, the <code>pExtraBytes</code> field would not be modified and would remain 0. Therefore, Microsoft patched the vulnerability solely targeting this exploitation method.</p>
+<p>However, as it turned out, there was more than one way to exploit this vulnerability, which brings us to CVE-2022-21882, which we will introduce next.</p>
+<h2 id="4-cve-2022-21882-vulnerability-analysis">4. CVE-2022-21882 Vulnerability Analysis</h2>
+<h3 id="41-vulnerability-mechanism">4.1 Vulnerability Mechanism</h3>
+<p>As mentioned in Section 2.2 regarding the limitations of the CVE-2021-1732 patch, Microsoft fixed the issue in the <code>win32kfull!xxxCreateWindowEx</code> function by checking the <code>pExtraBytes</code> field after the call to <code>__xxxClientAllocWindowClassExtraBytes</code> had finished. However, the root cause was in the <code>__xxxClientAllocWindowClassExtraBytes</code> function itself. When CVE-2021-1732 was discovered, only <code>xxxCreateWindowEx</code> called <code>__xxxClientAllocWindowClassExtraBytes</code>. However, with system updates and upgrades, new code was added to win32k, and other functions started calling <code>__xxxClientAllocWindowClassExtraBytes</code>. Checking the <code>win32kfull.sys</code> file from December 2021 reveals that functions such as <code>xxxDesktopWndProcWorker</code>, <code>xxxMenuWindowProc</code>, <code>xxxSBWndProc</code>, <code>xxxSwitchWndProc</code>, and <code>xxxTooltipWndProc</code> all call <code>__xxxClientAllocWindowClassExtraBytes</code>. These functions did not implement the same checks as <code>xxxCreateWindowEx</code>, leading to the recurrence of the same vulnerability.</p>
+<h3 id="42-patch-analysis">4.2 Patch Analysis</h3>
+<p>In the updated <code>win32kfull</code>, Microsoft first refactored similar code by extracting the common logic from the aforementioned functions that call <code>__xxxClientAllocWindowClassExtraBytes</code> into a single function named <code>xxxValidateClassAndSize</code>, which in turn calls <code>__xxxClientAllocWindowClassExtraBytes</code>. This refactoring is unrelated to the vulnerability itself.</p>
+<p>The patch then added the following code snippet at the end of the <code>xxxClientAllocWindowClassExtraBytes</code> function:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c++" data-lang="c++"><span style="display:flex;"><span>  v4 <span style="color:#f92672">=</span> KeUserModeCallback(<span style="color:#ae81ff">123</span>i64, <span style="color:#f92672">&amp;</span>Length_1, <span style="color:#ae81ff">4</span>i64, <span style="color:#f92672">&amp;</span>OutputBuffer, <span style="color:#f92672">&amp;</span>OutputBufferLength);
+</span></span><span style="display:flex;"><span>  <span style="color:#75715e">// pass some unchanged checks
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">if</span> ( (<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>(tagWND <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xE8</span>i64) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x800</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span> )<span style="color:#75715e">// Check dwExtraFlag
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    result <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>i64;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>    result <span style="color:#f92672">=</span> Mem_1;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> result;
+</span></span></code></pre></div><p>This time, <code>dwExtraFlag</code> is checked directly after the callback function finishes execution, preventing the callback function from switching the window to the offset mode.</p>
+<h3 id="43-exploitation">4.3 Exploitation</h3>
+<p>Since the vulnerability mechanisms of CVE-2022-21882 and CVE-2021-1732 are completely identical, their exploitation methods are also the same, so they will not be repeated here.</p>
+<h2 id="5-conclusion">5. Conclusion</h2>
+<p>This article mainly focuses on the <strong>prerequisites/basic knowledge</strong> and <strong>vulnerability exploitation</strong>, which were the parts I could never understand when I first started learning about win32k vulnerabilities. Through studying these two similar vulnerabilities, I have gained a preliminary understanding of win32k vulnerabilities, learned to distinguish &ldquo;basic knowledge&rdquo; from &ldquo;vulnerability concepts&rdquo;, and clarified the starting points for analyzing and finding such vulnerabilities.</p>
+<p>However, I have only studied this category of vulnerabilities so far, and win32k contains other types of flaws. Thus, this article alone cannot address all aspects. Nonetheless, I hope that reading this article can guide you, as a fellow win32k vulnerability beginner, to facilitate your future analyses of other vulnerabilities.</p>
+<h2 id="6-references">6. References</h2>
+<ol>
+<li><a href="https://paper.seebug.org/102/">Classic Kernel Vulnerability Debugging Notes</a></li>
+<li><a href="http://blog.topsec.com.cn/cve-2022-21882-win32k%e5%86%85%e6%a0%b8%e6%8f%90%e6%9d%83%e6%bc%8f%e6%b4%9e%e6%b7%b1%e5%85%a5%e5%88%86%e6%9e%90/">Deep Analysis of Win32k Kernel Privilege Escalation Vulnerability CVE-2022-21882</a></li>
+<li>Programming Windows 5th</li>
+<li>Kernel Attacks through User-Mode Callbacks, by Tarjei Mandt</li>
+<li><a href="http://blog.topsec.com.cn/cve-2022-21882-win32k%e5%86%85%e6%a0%b8%e6%8f%90%e6%9d%83%e6%bc%8f%e6%b4%9e%e6%b7%b1%e5%85%a5%e5%88%86%e6%9e%90/">Deep Analysis of Win32k Kernel Privilege Escalation Vulnerability CVE-2022-21882</a></li>
+<li><a href="https://ti.dbappsecurity.com.cn/blog/articles/2021/02/10/windows-kernel-zero-day-exploit-is-used-by-bitter-apt-in-targeted-attack-cn/">0DAY Attack! Bitter APT Group First Spotted Using Windows Kernel Privilege Escalation 0DAY (CVE-2021-1732) in Targeted Attacks Against Domestic Targets</a></li>
+<li><a href="https://www.secpulse.com/archives/157286.html">In-Depth Analysis of CVE-2021-1732 Vulnerability</a></li>
+<li><a href="https://github.com/k-k-k-k-k/CVE-2021-1732/blob/main/CVE-2021-1732%E7%A0%94%E7%A9%B6%E5%8F%8AExploit%E5%BC%80%E5%8F%91.pdf">CVE-2021-1732 Study and Exploit Development</a></li>
+<li><a href="https://googleprojectzero.github.io/0days-in-the-wild/0day-RCAs/2022/CVE-2022-21882.html">CVE-2022-21882: Win32k Window Object Type Confusion</a></li>
+</ol>
+
+		</div>
+		<footer class="post__footer">
+			
+<div class="post__tags tags clearfix">
+	<svg class="tags__badge icon icon-tag" width="16" height="16" viewBox="0 0 32 32"><path d="M32 19c0 1-1 2-1 2L21 31s-1 1-2 1-2-1-2-1L2 16c-1-1-1.4-2-1.4-2S0 12.5 0 11V3C0 1.5.8.8.8.8S1.5 0 3 0h8c1.5 0 3 .6 3 .6S15 1 16 2l15 15s1 1 1 2zM7 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+	<ul class="tags__list">
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/cve/" rel="tag">cve</a>
+		</li>
+		<li class="tags__item">
+			<a class="tags__link btn" href="/tags/binary/" rel="tag">binary</a>
+		</li>
+	</ul>
+</div>
+		</footer>
+	</article>
+</main>
+
+
+
+
+
+
+
+
+			</div>
+			
+		</div>
+		<footer class="footer">
+	<div class="container footer__container flex">
+		
+		<div class="footer__copyright">
+			&copy; 2026 Logic Security.
+			<span class="footer__copyright-credits">Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> and <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a> theme.</span>
+		</div>
+	</div>
+</footer>
+	</div>
+<script async defer src="/js/menu.js"></script>
+</body>
+</html>
